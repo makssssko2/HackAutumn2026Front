@@ -5,7 +5,6 @@ import { AppIcon, EmptyState } from '@/shared/ui'
 import PaymentStatus from './PaymentStatus.vue'
 import type { Occurrence } from '../model/types'
 defineProps<{ payments: Occurrence[]; compact?: boolean }>()
-defineEmits<{ pay: [payment: Occurrence] }>()
 </script>
 <template>
   <div v-if="payments.length" class="table-scroll">
@@ -45,14 +44,7 @@ defineEmits<{ pay: [payment: Occurrence] }>()
           <td><PaymentStatus :payment="payment" /></td>
           <td v-if="!compact">{{ dateLabel(payment.paid_at) }}</td>
           <td class="row-action">
-            <button
-              v-if="!payment.paid && !payment.cancelled"
-              class="button small secondary"
-              @click="$emit('pay', payment)"
-            >
-              Оплатить<AppIcon name="external" :size="14" /></button
-            ><RouterLink
-              v-else
+            <RouterLink
               :to="`/payments/${payment.id}`"
               class="icon-button"
               :aria-label="`Открыть ${payment.title}`"

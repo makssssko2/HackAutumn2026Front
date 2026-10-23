@@ -3,7 +3,6 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { paymentApi, PaymentTable, type Occurrence, type Summary } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { ConfirmPayment } from '@/features/confirm-payment'
 import { AppIcon, AsyncState } from '@/shared/ui'
 import {
   currencies,
@@ -17,7 +16,6 @@ import {
 const session = useSession()
 const currentDate = session.settings?.today || dateISO()
 const month = ref(currentDate.slice(0, 7))
-const selected = ref<Occurrence | null>(null)
 const tab = ref('all')
 const { data, loading, error, reload } = useAsyncData(
   async () => {
@@ -46,12 +44,34 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
 <template>
   <div class="page-heading">
     <div>
-      <h1>Платежи под контролем</h1>
-      <p>Все расходы команды. Каждый период на своем месте.</p>
+      <h1>{{ session.isAdmin ? 'Выставление счетов и контроль оплат' : 'Платежи команды' }}</h1>
+      <p>
+        {{
+          session.isAdmin
+            ? 'Выставляйте счета и отправляйте их получателям. Оплату участники подтверждают из уведомлений.'
+            : 'Проверяйте сроки и историю. Подтвердить оплату можно в уведомлении о счете.'
+        }}
+      </p>
     </div>
     <RouterLink v-if="session.isAdmin" to="/payments/new" class="button"
-      ><AppIcon name="plus" :size="18" />Добавить платеж</RouterLink
+      ><AppIcon name="plus" :size="18" />Выставить счет</RouterLink
     >
+  </div>
+  <section v-if="session.isAdmin" class="issue-workflow">
+    <div>
+      <h2>Новый счет для команды</h2>
+      <p>Название и сумма → срок и повторение → все получатели или выбранные группы.</p>
+    </div>
+    <RouterLink to="/payments/new" class="button"
+      ><AppIcon name="plus" :size="18" />Выставить счет</RouterLink
+    >
+  </section>
+  <div v-else class="setup-note">
+    <AppIcon name="notifications" :size="22" />
+    <p>
+      Счета для оплаты приходят в Telegram и другие подключенные каналы.
+      <RouterLink to="/notifications" class="text-link">Открыть уведомления</RouterLink>
+    </p>
   </div>
   <AsyncState :loading="loading" :error="error" @retry="reload"
     ><section class="overview-summary">
@@ -142,7 +162,7 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
           {{ label }}
         </button>
       </div>
-      <PaymentTable :payments="visible" compact @pay="selected = $event" />
+      <PaymentTable :payments="visible" compact />
     </section>
     <div class="overview-bottom">
       <section class="next-payment">
@@ -175,6 +195,6 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
             }}<AppIcon name="arrow" :size="16"
           /></RouterLink>
         </div>
-      </section></div></AsyncState
-  ><ConfirmPayment :payment="selected" @close="selected = null" @confirmed="reload" />
+      </section></div
+  ></AsyncState>
 </template>

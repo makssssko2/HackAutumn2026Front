@@ -11,7 +11,7 @@ export const router = createRouter({
     {
       path: '/payments/new',
       component: () => import('@/pages/create-payment'),
-      meta: { title: 'Новый платеж', admin: true },
+      meta: { title: 'Выставить счет', admin: true },
     },
     {
       path: '/payments/:id',
@@ -61,6 +61,7 @@ export const router = createRouter({
 router.beforeEach(async (to) => {
   const session = useSession()
   if (!session.ready) await session.restore()
+  else if (to.path !== '/login') await session.refreshIdentity()
   if (!session.user && to.path !== '/login') return '/login'
   if (session.user && to.path === '/login') return '/'
   if (to.meta.admin && !session.isAdmin) return '/'

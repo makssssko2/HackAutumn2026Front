@@ -3,7 +3,6 @@ import { ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { paymentApi, PaymentTable, type Occurrence } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { ConfirmPayment } from '@/features/confirm-payment'
 import { AppIcon, AsyncState } from '@/shared/ui'
 import { currencies, dateISO, monthRange, useAsyncData } from '@/shared/lib'
 const session = useSession()
@@ -13,7 +12,6 @@ const allPeriods = ref(route.query.status === 'overdue')
 const status = ref(String(route.query.status || ''))
 const currency = ref('')
 const search = ref('')
-const selected = ref<Occurrence | null>(null)
 const {
   data: rows,
   loading,
@@ -39,11 +37,17 @@ watch(search, () => {
 <template>
   <div class="page-heading">
     <div>
-      <h1>Счета</h1>
-      <p>Оплаты, сроки и история каждого периода.</p>
+      <h1>{{ session.isAdmin ? 'Выставленные счета' : 'Счета' }}</h1>
+      <p>
+        {{
+          session.isAdmin
+            ? 'Контролируйте статусы счетов, отправленных получателям.'
+            : 'Сроки, статусы и история каждого периода. Оплата доступна из уведомлений.'
+        }}
+      </p>
     </div>
     <RouterLink v-if="session.isAdmin" to="/payments/new" class="button"
-      ><AppIcon name="plus" :size="18" />Добавить платеж</RouterLink
+      ><AppIcon name="plus" :size="18" />Выставить счет</RouterLink
     >
   </div>
   <section class="panel">
@@ -68,9 +72,8 @@ watch(search, () => {
       >
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
-      ><PaymentTable :payments="rows" @pay="selected = $event" />
+      ><PaymentTable :payments="rows" />
       <div class="table-footer">Найдено счетов: {{ rows.length }}</div></AsyncState
     >
   </section>
-  <ConfirmPayment :payment="selected" @close="selected = null" @confirmed="reload" />
 </template>

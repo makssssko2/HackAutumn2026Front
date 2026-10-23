@@ -2,7 +2,6 @@
 import { computed, ref, watch } from 'vue'
 import { paymentApi, PaymentTable, type Occurrence } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { ConfirmPayment } from '@/features/confirm-payment'
 import {
   dateISO,
   dateLabel,
@@ -16,8 +15,8 @@ import { AppIcon, AsyncState } from '@/shared/ui'
 const session = useSession()
 const current = session.settings?.today || dateISO()
 const month = ref(current.slice(0, 7)),
-  selectedDay = ref(current),
-  selected = ref<Occurrence | null>(null)
+  selectedDay = ref(current)
+
 const {
   data: rows,
   loading,
@@ -121,6 +120,6 @@ function sum(payments: Occurrence[], currency: string) {
           }}</span>
         </div>
       </div>
-      <PaymentTable :payments="dayRows" compact @pay="selected = $event" /></section></AsyncState
-  ><ConfirmPayment :payment="selected" @close="selected = null" @confirmed="reload" />
+      <PaymentTable :payments="dayRows" compact /></section
+  ></AsyncState>
 </template>

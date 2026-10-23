@@ -15,14 +15,14 @@ function updateMobile(event: MediaQueryListEvent) {
   if (!event.matches) menuOpen.value = false
 }
 const logoutError = ref('')
-const primary = [
+const primary = computed(() => [
   ['/', 'overview', 'Обзор'],
-  ['/payments', 'payments', 'Счета'],
+  ['/payments', 'payments', session.isAdmin ? 'Выставленные счета' : 'Счета'],
   ['/recurring', 'recurring', 'Регулярные платежи'],
   ['/calendar', 'calendar', 'Календарь'],
   ['/budget', 'budget', 'Бюджет'],
-  ['/notifications', 'notifications', 'Уведомления'],
-]
+  ['/notifications', 'notifications', session.isAdmin ? 'Журнал рассылок' : 'Уведомления'],
+])
 const management = [
   ['/users', 'users', 'Пользователи'],
   ['/groups', 'groups', 'Группы рассылки'],
@@ -48,12 +48,19 @@ function expired() {
   session.user = null
   router.push('/login')
 }
+async function syncSession() {
+  await session.refreshIdentity()
+  if (!session.user && route.path !== '/login') router.push('/login')
+  else if (route.meta.admin && !session.isAdmin) router.push('/')
+}
 onMounted(() => {
   window.addEventListener('session-expired', expired)
+  window.addEventListener('focus', syncSession)
   mobileQuery.addEventListener('change', updateMobile)
 })
 onUnmounted(() => {
   window.removeEventListener('session-expired', expired)
+  window.removeEventListener('focus', syncSession)
   mobileQuery.removeEventListener('change', updateMobile)
 })
 </script>
@@ -81,8 +88,21 @@ onUnmounted(() => {
       >
       <div class="workspace-picker">
         <span class="workspace-avatar">IK</span>
-        <div><strong>Рабочее пространство</strong><small>Общий учет расходов</small></div>
+        <div>
+          <strong>{{ session.isAdmin ? 'Панель администратора' : 'Кабинет пользователя' }}</strong
+          ><small>{{
+            session.isAdmin ? 'Выставление счетов и рассылки' : 'Уведомления и история оплат'
+          }}</small>
+        </div>
       </div>
+      <RouterLink
+        v-if="session.isAdmin"
+        to="/payments/new"
+        class="button sidebar-issue"
+        @click="menuOpen = false"
+      >
+        <AppIcon name="plus" :size="18" />Выставить счет
+      </RouterLink>
       <nav aria-label="Основная навигация">
         <RouterLink
           v-for="[path, icon, label] in primary"

@@ -1,6 +1,6 @@
 import { defineStore } from 'pinia'
 import { computed, ref } from 'vue'
-import { api, jsonBody } from '@/shared/api'
+import { api, ApiError, jsonBody } from '@/shared/api'
 
 export interface SessionUser {
   id: string
@@ -30,6 +30,13 @@ export const useSession = defineStore('session', () => {
       ready.value = true
     }
   }
+  async function refreshIdentity() {
+    try {
+      user.value = await api<SessionUser>('/auth/me')
+    } catch (error) {
+      if (error instanceof ApiError && error.status === 401) user.value = null
+    }
+  }
   async function login(login: string, password: string) {
     user.value = await api<SessionUser>('/auth/login', {
       method: 'POST',
@@ -41,5 +48,5 @@ export const useSession = defineStore('session', () => {
     await api('/auth/logout', { method: 'POST' })
     user.value = null
   }
-  return { user, ready, isAdmin, settings, restore, login, logout }
+  return { user, ready, isAdmin, settings, restore, refreshIdentity, login, logout }
 })

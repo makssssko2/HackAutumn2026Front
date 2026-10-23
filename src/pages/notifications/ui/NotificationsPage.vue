@@ -2,6 +2,8 @@
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import { useSession } from '@/entities/session'
+import type { Occurrence } from '@/entities/payment'
+import { ConfirmPayment } from '@/features/confirm-payment'
 import { api } from '@/shared/api'
 import { dateLabel, money, useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
@@ -18,13 +20,23 @@ interface Delivery {
   attempts: number
   error: string | null
   created_at: string
+  due_date: string
+  payment: Occurrence
+  receipt_id: string | null
 }
 const session = useSession()
+const selected = ref<Occurrence | null>(null)
 const { data, loading, error, reload } = useAsyncData(() => api<Delivery[]>('/notifications'), [])
 const filter = ref(''),
   operationError = ref(''),
   busy = ref('')
-const visible = computed(() => data.value.filter((d) => !filter.value || d.status === filter.value))
+const visible = computed(() =>
+  data.value.filter((delivery) =>
+    session.isAdmin
+      ? !filter.value || delivery.status === filter.value
+      : delivery.status === 'sent' && ['created', 'reminder'].includes(delivery.event),
+  ),
+)
 const labels: Record<string, string> = {
   pending: 'В очереди',
   sending: 'Отправляется',
@@ -59,12 +71,12 @@ async function retry(id: string) {
 <template>
   <div class="page-heading">
     <div>
-      <h1>Уведомления</h1>
+      <h1>{{ session.isAdmin ? 'Журнал рассылок' : 'Уведомления и оплата счетов' }}</h1>
       <p>
         {{
           session.isAdmin
             ? 'История отправок по всем каналам и повторные попытки.'
-            : 'События и напоминания о платежах команды.'
+            : 'Полученные счета можно оплатить прямо здесь. После подтверждения появится демонстрационный чек.'
         }}
       </p>
     </div>
@@ -75,12 +87,16 @@ async function retry(id: string) {
   <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
   <section class="panel">
     <div class="filters">
-      <select v-model="filter" aria-label="Статус доставки">
+      <select v-if="session.isAdmin" v-model="filter" aria-label="Статус доставки">
         <option value="">Все статусы</option>
         <option v-for="(label, value) in labels" :key="value" :value="value">
           {{ label }}
         </option></select
-      ><span class="muted">Задания обрабатывает фоновый worker.</span>
+      ><span class="muted">{{
+        session.isAdmin
+          ? 'Статусы доставки счетов и напоминаний получателям.'
+          : 'Оплатить общий счет может один участник. Повторная оплата блокируется.'
+      }}</span>
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
       ><div v-if="visible.length" class="notification-list">
@@ -95,6 +111,7 @@ async function retry(id: string) {
             <p>
               {{ eventLabel(delivery.event) }} · {{ money(delivery.amount, delivery.currency) }}
             </p>
+            <p>Срок оплаты: {{ dateLabel(delivery.due_date) }}</p>
             <small
               >{{ delivery.channel_name }} ·
               {{
@@ -105,12 +122,36 @@ async function retry(id: string) {
                   minute: '2-digit',
                 })
               }}
-              · попыток {{ delivery.attempts }}</small
+              <template v-if="session.isAdmin"> · попыток {{ delivery.attempts }}</template></small
             >
-            <p v-if="delivery.error" class="error-text">{{ delivery.error }}</p>
+            <p v-if="session.isAdmin && delivery.error" class="error-text">{{ delivery.error }}</p>
           </div>
           <div class="notification-result">
+            <template v-if="!session.isAdmin">
+              <button
+                v-if="
+                  delivery.status === 'sent' &&
+                  ['created', 'reminder'].includes(delivery.event) &&
+                  !delivery.payment.paid &&
+                  !delivery.payment.cancelled
+                "
+                class="button small"
+                @click="selected = delivery.payment"
+              >
+                <AppIcon name="payments" :size="15" />Оплатить
+              </button>
+              <span v-else-if="delivery.payment.paid" class="status paid"
+                ><AppIcon name="check" :size="13" />Оплачено</span
+              >
+              <a
+                v-if="delivery.receipt_id"
+                :href="`/api/v1/receipts/${delivery.receipt_id}`"
+                class="text-link"
+                ><AppIcon name="download" :size="14" />Скачать чек</a
+              >
+            </template>
             <span
+              v-if="session.isAdmin"
               class="status"
               :class="
                 delivery.status === 'sent'
@@ -138,4 +179,10 @@ async function retry(id: string) {
         icon="notifications"
     /></AsyncState>
   </section>
+  <ConfirmPayment
+    v-if="!session.isAdmin"
+    :payment="selected"
+    @close="selected = null"
+    @confirmed="reload"
+  />
 </template>

@@ -39,12 +39,14 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 
 - `app`: startup, providers, router, application layout and global tokens/styles.
 - `pages`: route-owned screens and their specific forms/data orchestration.
-- `features/confirm-payment`: a payment action reused in overview, list, calendar and detail.
+- `features/confirm-payment`: recipient payment confirmation inside an in-app notification. Administrative ledgers remain focused on issuing and monitoring invoices.
 - `entities/payment`: occurrence/recurrence models, API and reusable payment/status views.
 - `entities/session`: current account, session and account-level settings.
 - `shared`: HTTP transport, generic async helper, display utilities and presentation primitives.
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
+
+The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. Administrative screens do not offer demo payment. Recipients pay from Telegram or an in-app notification and download the receipt there. The ordinary-user invoice card retains manual external-payment/date correction for case acceptance. Identity is refreshed on navigation and focus to prevent a stale role after another tab signs in.
 
 ## Screens
 

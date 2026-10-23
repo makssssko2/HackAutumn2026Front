@@ -35,7 +35,7 @@ async function stop(id: string, title: string) {
       <p>Расписание расходов и правила создания новых счетов.</p>
     </div>
     <RouterLink v-if="session.isAdmin" to="/payments/new" class="button"
-      ><AppIcon name="plus" :size="18" />Добавить платеж</RouterLink
+      ><AppIcon name="plus" :size="18" />Выставить счет</RouterLink
     >
   </div>
   <p v-if="operationError" role="alert" class="error-box">{{ operationError }}</p>
@@ -91,7 +91,7 @@ async function stop(id: string, title: string) {
       title="Добавьте первый регулярный платеж"
       description="Задайте сумму и расписание. Каждый период будет создан автоматически."
       ><RouterLink v-if="session.isAdmin" to="/payments/new" class="button"
-        >Добавить платеж</RouterLink
+        >Выставить счет</RouterLink
       ></EmptyState
     ></AsyncState
   >

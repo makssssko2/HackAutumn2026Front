@@ -18,6 +18,10 @@ Administrator creates recurring expenses, manages users and notification recipie
 
 Prevent forgotten recurring payments while preserving a separate payment history for every period.
 
+## Issuing and recipient workflow
+
+Confirmed correction: the administrative UI issues invoices and monitors their delivery and status. It does not offer demonstration payment controls. Make «Выставить счет» explicit and persistent. Recipients confirm demo payment inside Telegram or an in-app notification and receive a receipt there. The regular-user web view retains manual external-payment status/date corrections required by the case.
+
 ## Capabilities and Constraints
 
 RUB/USD/EUR are accounted for separately. Payments and generated receipts are demonstrations; no acquiring. Monthly recurrence is required. Include calendar, monthly/yearly planned budget, SMTP, outgoing webhooks, in-app notifications, Telegram actions, attachments and audit log. Default broadcast to all configured recipients, optional administrator-defined audience groups. Two independent local Git repositories; no push or publication.

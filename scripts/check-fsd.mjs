@@ -30,11 +30,7 @@ for (const file of walk(root).filter((name) => /\.(ts|vue)$/.test(name))) {
       source[0] === target[0] && (['app', 'shared'].includes(source[0]) || source[1] === target[1])
     if (toLayer < 0 || fromLayer < 0 || (!sameSlice && toLayer >= fromLayer))
       errors.push(`${path.relative(root, file)}: forbidden dependency ${specifier}`)
-    if (
-      !sameSlice &&
-      !['app', 'shared'].includes(target[0]) &&
-      target.length > 2
-    )
+    if (!sameSlice && !['app', 'shared'].includes(target[0]) && target.length > 2)
       errors.push(`${path.relative(root, file)}: use slice public API: ${specifier}`)
   }
 }

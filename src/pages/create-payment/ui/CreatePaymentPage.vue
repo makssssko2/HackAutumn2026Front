@@ -17,7 +17,27 @@ const form = reactive({
   frequency: 'monthly',
   group_ids: [] as string[],
 })
-const { data: groups } = useAsyncData(() => api<{ id: string; name: string }[]>('/groups'), [])
+interface RecipientChannel {
+  id: string
+  name: string
+  kind: string
+  config: Record<string, string>
+  active: boolean
+}
+const {
+  data: recipients,
+  error: recipientsError,
+  reload: reloadRecipients,
+} = useAsyncData(
+  async () => {
+    const [groups, channels] = await Promise.all([
+      api<{ id: string; name: string }[]>('/groups'),
+      api<RecipientChannel[]>('/channels'),
+    ])
+    return { groups, channels: channels.filter((channel) => channel.active) }
+  },
+  { groups: [] as { id: string; name: string }[], channels: [] as RecipientChannel[] },
+)
 const busy = ref(false),
   error = ref('')
 async function submit() {
@@ -26,7 +46,7 @@ async function submit() {
   try {
     const payment = await paymentApi.create(form)
     const rows = await paymentApi.list({ recurring_id: payment.id })
-    router.push(rows[0] ? `/payments/${rows[0].id}` : '/recurring')
+    router.push(rows[0] ? `/payments/${rows[0].id}?issued=1` : '/recurring')
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -40,13 +60,13 @@ async function submit() {
   >
   <div class="page-heading">
     <div>
-      <h1>Новый регулярный платеж</h1>
-      <p>Один раз настройте расписание — система создаст отдельный счет для каждого периода.</p>
+      <h1>Выставить счет</h1>
+      <p>Укажите сумму, срок и получателей. Пользователи подтвердят оплату из уведомления.</p>
     </div>
   </div>
   <div class="form-layout">
     <form class="panel form-panel" @submit.prevent="submit">
-      <h2>Данные платежа</h2>
+      <h2>Что нужно оплатить</h2>
       <label
         >Название<input
           v-model="form.title"
@@ -77,7 +97,7 @@ async function submit() {
             <option v-for="item in currencies" :key="item">{{ item }}</option>
           </select></label
         ><label
-          >Ближайшая оплата<input
+          >Срок оплаты<input
             v-model="form.first_due_date"
             type="date"
             min="2000-01-01"
@@ -92,35 +112,56 @@ async function submit() {
         >
       </div>
       <fieldset>
-        <legend>Кому отправлять уведомления</legend>
+        <legend>Куда отправить счет</legend>
         <p class="field-help">Без выбранных групп — всем подключенным получателям.</p>
-        <label v-for="group in groups" :key="group.id" class="checkbox-label"
+        <label v-for="group in recipients.groups" :key="group.id" class="checkbox-label"
           ><input v-model="form.group_ids" type="checkbox" :value="group.id" />{{
             group.name
           }}</label
         >
-        <p v-if="!groups.length" class="muted">
+        <p v-if="!recipients.groups.length" class="muted">
           Группы можно добавить в разделе «Группы рассылки».
         </p>
       </fieldset>
+      <p v-if="recipientsError" class="error-text">
+        {{ recipientsError }}
+        <button type="button" class="text-button" @click="reloadRecipients">Повторить</button>
+      </p>
       <p v-if="error" role="alert" class="error-text">{{ error }}</p>
       <div class="form-actions">
         <RouterLink to="/recurring" class="button secondary">Отмена</RouterLink
         ><button class="button" :disabled="busy">
           <AppIcon :name="busy ? 'loading' : 'plus'" :size="17" />{{
-            busy ? 'Создаем…' : 'Создать платеж'
+            busy ? 'Выставляем…' : 'Выставить счет и уведомить'
           }}
         </button>
       </div>
     </form>
     <aside class="form-aside">
       <h2>Как это работает</h2>
-      <p>Каждый период получает свой счет, дату и статус. История прошлых оплат сохраняется.</p>
+      <p>
+        Вы выставляете счет. Система отправляет сообщение получателям. Участник подтверждает оплату
+        в уведомлении, а здесь обновляются статус и чек.
+      </p>
       <div class="preview-invoice">
         <AppIcon name="payments" :size="23" /><strong>{{ form.title || 'Название платежа' }}</strong
         ><span>{{ money(form.amount || 0, form.currency) }}</span
         ><small>{{ frequencyLabel[form.frequency] }}</small>
       </div>
+      <h3>Подключенные каналы</h3>
+      <ul class="recipient-channel-list">
+        <li v-for="channel in recipients.channels" :key="channel.id">
+          <AppIcon :name="channel.kind" :size="16" /><span
+            >{{ channel.name
+            }}<small v-if="channel.kind === 'telegram' && !channel.config.chat_id"
+              >Чат еще не привязан</small
+            ></span
+          >
+        </li>
+      </ul>
+      <RouterLink to="/settings" class="text-link"
+        >Подключить Telegram или другой канал<AppIcon name="arrow" :size="15"
+      /></RouterLink>
       <p>
         Напоминание отправится за три дня до срока. Если до оплаты осталось меньше трех дней — сразу
         после создания.

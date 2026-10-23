@@ -9,13 +9,11 @@ import {
   type OccurrenceDetail,
 } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { ConfirmPayment } from '@/features/confirm-payment'
 import { api, jsonBody } from '@/shared/api'
 import { dateISO, dateLabel, money, frequencyLabel, actionLabel, useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState } from '@/shared/ui'
 const route = useRoute()
 const session = useSession()
-const selected = ref<Occurrence | null>(null)
 const actualDate = ref('')
 const busy = ref(false),
   operationError = ref(''),
@@ -125,6 +123,29 @@ async function addLink() {
         <PaymentStatus :payment="data.detail" />
       </div>
       <div v-if="message" class="success-box" role="status">{{ message }}</div>
+      <div v-if="session.isAdmin && route.query.issued" class="issued-confirmation" role="status">
+        <AppIcon name="checks" :size="25" />
+        <div>
+          <h2>Счет выставлен</h2>
+          <p>
+            Уведомления поставлены в очередь для выбранных получателей. Участник подтвердит оплату в
+            сообщении; статус и чек появятся здесь.
+          </p>
+          <RouterLink to="/notifications" class="text-link"
+            >Проверить рассылку<AppIcon name="arrow" :size="16"
+          /></RouterLink>
+        </div>
+      </div>
+      <div
+        v-else-if="session.isAdmin && !data.detail.paid && !data.detail.cancelled"
+        class="setup-note"
+      >
+        <AppIcon name="telegram" :size="22" />
+        <p>
+          Счет ожидает подтверждения от участника. Оплата выполняется в уведомлении, например в
+          Telegram.
+        </p>
+      </div>
       <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
       <div class="detail-layout">
         <section class="panel detail-main">
@@ -133,13 +154,6 @@ async function addLink() {
               <span class="muted">Сумма счета</span>
               <h2 class="detail-amount">{{ money(data.detail.amount, data.detail.currency) }}</h2>
             </div>
-            <button
-              v-if="!data.detail.paid && !data.detail.cancelled"
-              class="button"
-              @click="selected = data.detail"
-            >
-              <AppIcon name="payments" :size="18" />Оплатить
-            </button>
           </div>
           <p v-if="data.detail.description" class="detail-description">
             {{ data.detail.description }}
@@ -164,7 +178,7 @@ async function addLink() {
               </dd>
             </div>
           </dl>
-          <div v-if="!data.detail.cancelled" class="payment-corrections">
+          <div v-if="!session.isAdmin && !data.detail.cancelled" class="payment-corrections">
             <template v-if="data.detail.paid"
               ><form class="inline-form" @submit.prevent="saveDate">
                 <label
@@ -179,7 +193,7 @@ async function addLink() {
                 Отменить отметку оплаты
               </button></template
             ><button v-else class="button secondary" :disabled="busy" @click="markExternal">
-              <AppIcon name="check" :size="18" />Уже оплачено вне системы
+              <AppIcon name="check" :size="18" />Отметить внешнюю оплату
             </button>
           </div>
           <div v-if="data.detail.receipts.length" class="receipts-section">
@@ -273,7 +287,6 @@ async function addLink() {
         <PaymentTable
           :payments="data.periods.filter((p) => p.id !== data.detail!.id).slice(0, 12)"
           compact
-          @pay="selected = $event"
-        /></section></template></AsyncState
-  ><ConfirmPayment :payment="selected" @close="selected = null" @confirmed="reload" />
+        /></section></template
+  ></AsyncState>
 </template>
