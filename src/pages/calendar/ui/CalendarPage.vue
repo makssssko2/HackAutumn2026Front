@@ -23,10 +23,14 @@ const {
   error,
   reload,
 } = useAsyncData(() => paymentApi.list(monthRange(month.value)), [])
-watch(month, () => {
-  selectedDay.value = `${month.value}-01`
-  reload()
-})
+watch(
+  month,
+  () => {
+    selectedDay.value = month.value === current.slice(0, 7) ? current : `${month.value}-01`
+    reload()
+  },
+  { flush: 'sync' },
+)
 const days = computed(() => {
   const [year, m] = month.value.split('-').map(Number)
   const start = new Date(year!, m! - 1, 1)
@@ -41,7 +45,7 @@ const days = computed(() => {
     },
   )
 })
-const dayRows = computed(() => rows.value.filter((p) => p.due_date === selectedDay.value))
+const dayRows = computed(() => rows.value.filter((p) => p.due_date === selectedDay.value && !p.cancelled))
 function goToday() {
   month.value = current.slice(0, 7)
   selectedDay.value = current

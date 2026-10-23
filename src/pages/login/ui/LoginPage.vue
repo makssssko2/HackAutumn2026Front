@@ -72,7 +72,8 @@ async function submit() {
           }}<AppIcon :name="busy ? 'loading' : 'arrow'" :class="{ spin: busy }" :size="18" />
         </button>
         <p class="login-hint">
-          Учетную запись выдает администратор.<br />Демо-доступ: <strong>demo / demo12345</strong>
+          Демо-пользователь: <strong>demo / demo12345</strong>.<br />
+          Для выставления счетов войдите под администратором с учетными данными из .env.
         </p>
       </form>
     </section>
