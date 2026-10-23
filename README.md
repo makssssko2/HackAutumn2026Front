@@ -14,7 +14,7 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` to the backend, so session cookies remain HttpOnly and no token is stored in localStorage. `VITE_API_PROXY_TARGET` changes the API upstream. The backend origin allowlist must include the browser's origin.
 
-Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. After explicit backend demo seeding: ordinary account `demo / demo12345`.
+Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. Only this role can sign in to the web panel or use its authenticated API. Participants, including the demo participant record, have no web access and pay directly in the connected Telegram group.
 
 ## Docker
 
@@ -39,18 +39,17 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 
 - `app`: startup, providers, router, application layout and global tokens/styles.
 - `pages`: route-owned screens and their specific forms/data orchestration.
-- `features/confirm-payment`: recipient payment confirmation inside an in-app notification. Administrative ledgers remain focused on issuing and monitoring invoices.
 - `entities/payment`: occurrence/recurrence models, API and reusable payment/status views.
 - `entities/session`: current account, session and account-level settings.
 - `shared`: HTTP transport, generic async helper, display utilities and presentation primitives.
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
 
-The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. Administrative screens do not offer demo payment. Recipients pay from Telegram or an in-app notification and download the receipt there. The ordinary-user invoice card retains manual external-payment/date correction for case acceptance. Identity is refreshed on navigation and focus to prevent a stale role after another tab signs in.
+The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal or web payment. Recipients pay in Telegram and receive a receipt there. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes the token, Docker startup and chat-link instructions.
 
 ## Screens
 
-Overview, filterable invoices, invoice card and independent periods, recurring schedules, calendar with date totals, monthly/yearly currency budget, notification delivery journal, user management, recipient groups, channel connections and action audit. Users can confirm/cancel payment, correct dates and attach a file/link. Admin-only routes are protected in the router and independently enforced by the backend.
+Admin-only overview, filterable invoices, invoice card and independent periods, recurring schedules, calendar with date totals, monthly/yearly currency budget, notification delivery journal, participant record management, recipient groups, channel connections and action audit. The administrator can attach a file/link. All protected routes require administrator authentication, independently enforced by the backend.
 
 ## Design
 

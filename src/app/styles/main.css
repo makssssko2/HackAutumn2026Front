@@ -26,6 +26,32 @@
 .sidebar-issue {
   margin: -7px 0 20px;
 }
+.telegram-setup-guide {
+  padding: 20px 24px;
+  margin-bottom: 24px;
+}
+.telegram-setup-guide summary {
+  cursor: pointer;
+  font-weight: 650;
+}
+.telegram-setup-guide ol {
+  padding-left: 22px;
+  line-height: 1.7;
+  max-width: 85ch;
+}
+.telegram-setup-guide li + li {
+  margin-top: 10px;
+}
+.telegram-setup-guide pre {
+  overflow: auto;
+  padding: 12px;
+  background: var(--ground);
+  border-radius: 8px;
+  font-size: 12px;
+}
+.telegram-setup-guide code {
+  overflow-wrap: anywhere;
+}
 .issue-workflow {
   display: flex;
   align-items: center;

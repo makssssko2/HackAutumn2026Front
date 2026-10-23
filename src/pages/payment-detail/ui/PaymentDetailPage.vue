@@ -10,11 +10,10 @@ import {
 } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import { api, jsonBody } from '@/shared/api'
-import { dateISO, dateLabel, money, frequencyLabel, actionLabel, useAsyncData } from '@/shared/lib'
+import { dateLabel, money, frequencyLabel, actionLabel, useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState } from '@/shared/ui'
 const route = useRoute()
 const session = useSession()
-const actualDate = ref('')
 const busy = ref(false),
   operationError = ref(''),
   message = ref('')
@@ -24,7 +23,6 @@ const { data, loading, error, reload } = useAsyncData(
   async () => {
     const detail = await paymentApi.detail(String(route.params.id))
     const periods = await paymentApi.list({ recurring_id: detail.recurring_id })
-    actualDate.value = detail.paid_at || ''
     return { detail, periods }
   },
   { detail: null as OccurrenceDetail | null, periods: [] as Occurrence[] },
@@ -43,43 +41,6 @@ async function operate(action: () => Promise<unknown>, success: string) {
   } finally {
     busy.value = false
   }
-}
-function cancelPayment() {
-  if (
-    !data.value.detail ||
-    !window.confirm(
-      'Отменить отметку оплаты? Счет снова станет неоплаченным, демонстрационный чек будет аннулирован.',
-    )
-  )
-    return
-  operate(
-    () =>
-      paymentApi.update(data.value.detail!.id, {
-        paid: false,
-        expected_revision: data.value.detail!.revision,
-      }),
-    'Отметка оплаты отменена',
-  )
-}
-function saveDate() {
-  const detail = data.value.detail
-  if (detail)
-    operate(
-      () =>
-        paymentApi.update(detail.id, {
-          paid_at: actualDate.value,
-          expected_revision: detail.revision,
-        }),
-      'Дата оплаты изменена',
-    )
-}
-function markExternal() {
-  const detail = data.value.detail
-  if (detail)
-    operate(
-      () => paymentApi.update(detail.id, { paid: true, expected_revision: detail.revision }),
-      'Внешняя оплата подтверждена',
-    )
 }
 async function upload(event: Event) {
   const input = event.target as HTMLInputElement
@@ -178,24 +139,6 @@ async function addLink() {
               </dd>
             </div>
           </dl>
-          <div v-if="!session.isAdmin && !data.detail.cancelled" class="payment-corrections">
-            <template v-if="data.detail.paid"
-              ><form class="inline-form" @submit.prevent="saveDate">
-                <label
-                  >Исправить дату оплаты<input
-                    v-model="actualDate"
-                    type="date"
-                    required
-                    :max="session.settings?.today || dateISO()" /></label
-                ><button class="button secondary" :disabled="busy">Сохранить дату</button>
-              </form>
-              <button class="text-button danger-text" :disabled="busy" @click="cancelPayment">
-                Отменить отметку оплаты
-              </button></template
-            ><button v-else class="button secondary" :disabled="busy" @click="markExternal">
-              <AppIcon name="check" :size="18" />Отметить внешнюю оплату
-            </button>
-          </div>
           <div v-if="data.detail.receipts.length" class="receipts-section">
             <h3>Демонстрационные чеки</h3>
             <a

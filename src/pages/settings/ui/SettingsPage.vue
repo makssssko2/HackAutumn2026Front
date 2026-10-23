@@ -101,6 +101,33 @@ async function toggle(channel: Channel) {
       >. Токен бота и параметры SMTP задаются на сервере через <code>.env</code>.
     </p>
   </div>
+  <details class="panel telegram-setup-guide">
+    <summary>Как подключить Telegram-бота</summary>
+    <ol>
+      <li>Создайте бота через @BotFather командой /newbot и скопируйте выданный токен.</li>
+      <li>
+        На сервере откройте <code>Back/.env</code> и заполните
+        <code>TELEGRAM_BOT_TOKEN=ваш_токен</code>.
+      </li>
+      <li>
+        Из папки Back запустите:
+        <pre><code>docker compose --profile telegram up -d --build --force-recreate api worker bot</code></pre>
+      </li>
+      <li>Здесь нажмите «Добавить канал», выберите Telegram и задайте название группы.</li>
+      <li>
+        Добавьте бота в группу с разрешением отправлять сообщения и файлы. Нажмите «Подключить чат»
+        и выполните выданную команду от имени администратора группы. Код действует 10 минут. Чтобы
+        команда точно дошла нужному боту, используйте <code>/connect@имя_бота КОД</code>.
+      </li>
+      <li>
+        Нажмите «Обновить», затем «Тест». После привязки выставляйте новые счета — бот отправит их в
+        группу.
+      </li>
+    </ol>
+    <p class="field-help">
+      Участники нажимают «Оплатить» прямо в сообщении. Вход в веб-панель им не нужен.
+    </p>
+  </details>
   <div v-if="message" class="success-box" role="status">{{ message }}</div>
   <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
   <form v-if="showForm" class="panel form-panel compact-form" @submit.prevent="submit">
@@ -164,7 +191,10 @@ async function toggle(channel: Channel) {
       Добавьте бота в группу. Выполните команду от имени администратора чата в течение 10 минут:
     </p>
     <code class="connection-code">{{ linkCommand.command }}</code>
-    <p class="field-help">Код одноразовый. После привязки нажмите «Обновить».</p>
+    <p class="field-help">
+      Код одноразовый. Если в группе включен режим приватности бота, используйте /connect@имя_бота
+      КОД. После привязки нажмите «Обновить».
+    </p>
     <button class="button secondary" @click="reload">Обновить</button>
   </section>
   <AsyncState :loading="loading" :error="error" @retry="reload"

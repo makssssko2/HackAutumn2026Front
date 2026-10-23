@@ -43,6 +43,7 @@ export const actionLabel: Record<string, string> = {
   'auth.login': 'Вход в систему',
   'auth.logout': 'Выход из системы',
   'auth.failed': 'Неудачная попытка входа',
+  'auth.denied': 'Отказ во входе: панель только для администратора',
   'payment.created': 'Создан регулярный платеж',
   'payment.stopped': 'Регулярный платеж прекращен',
   'occurrence.paid': 'Оплата подтверждена',

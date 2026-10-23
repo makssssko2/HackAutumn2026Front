@@ -62,6 +62,7 @@ router.beforeEach(async (to) => {
   const session = useSession()
   if (!session.ready) await session.restore()
   else if (to.path !== '/login') await session.refreshIdentity()
+  if (session.user && !session.isAdmin) session.user = null
   if (!session.user && to.path !== '/login') return '/login'
   if (session.user && to.path === '/login') return '/'
   if (to.meta.admin && !session.isAdmin) return '/'

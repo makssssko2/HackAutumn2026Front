@@ -48,7 +48,7 @@ async function submit() {
     <section class="login-form-section">
       <form class="login-form" @submit.prevent="submit">
         <h2>С возвращением</h2>
-        <p class="muted">Войдите, чтобы проверить платежи команды.</p>
+        <p class="muted">Вход для администратора. Участники работают со счетами в Telegram.</p>
         <label
           >Логин<input
             v-model="login"
@@ -72,8 +72,8 @@ async function submit() {
           }}<AppIcon :name="busy ? 'loading' : 'arrow'" :class="{ spin: busy }" :size="18" />
         </button>
         <p class="login-hint">
-          Демо-пользователь: <strong>demo / demo12345</strong>.<br />
-          Для выставления счетов войдите под администратором с учетными данными из .env.
+          Здесь администратор выставляет счета и управляет рассылкой. Участникам не нужна учетная
+          запись веб-панели — кнопка оплаты приходит в чат вместе со счетом.
         </p>
       </form>
     </section>

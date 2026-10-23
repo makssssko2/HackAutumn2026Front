@@ -12,7 +12,7 @@ Confirmed: Vue + Vite + TypeScript, Feature-Sliced Design. Separate Python API r
 
 ## Users
 
-Administrator creates recurring expenses, manages users and notification recipients. Users inspect the shared list, confirm payment and correct actual payment dates. Any participant of a connected Telegram group can confirm its shared invoice once.
+Only the administrator can access the web application and its authenticated API. The administrator creates recurring expenses and manages participant records and notification recipients. Participants work through Telegram: any participant of a connected group can confirm its shared invoice once, without a web account.
 
 ## Product Purpose
 
@@ -20,7 +20,7 @@ Prevent forgotten recurring payments while preserving a separate payment history
 
 ## Issuing and recipient workflow
 
-Confirmed correction: the administrative UI issues invoices and monitors their delivery and status. It does not offer demonstration payment controls. Make «Выставить счет» explicit and persistent. Recipients confirm demo payment inside Telegram or an in-app notification and receive a receipt there. The regular-user web view retains manual external-payment status/date corrections required by the case.
+Latest user correction overrides the earlier interpretation of the case: there is no participant web portal or in-app payment. The administrative UI issues invoices and monitors delivery and status, without demonstration payment controls. Make «Выставить счет» explicit and persistent. Participants confirm demo payment inside Telegram and receive the receipt there. In-app notifications are an administrative delivery journal.
 
 ## Capabilities and Constraints
 

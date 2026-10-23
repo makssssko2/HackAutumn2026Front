@@ -58,7 +58,10 @@ async function remove(user: SessionUser) {
   <div class="page-heading">
     <div>
       <h1>Пользователи</h1>
-      <p>Доступ команды к счетам и подтверждению оплат.</p>
+      <p>
+        Учетные записи участников. Веб-панель доступна только администратору; участники оплачивают
+        счета в Telegram.
+      </p>
     </div>
     <button class="button" @click="open()">
       <AppIcon name="plus" :size="18" />Добавить пользователя

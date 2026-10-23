@@ -34,7 +34,7 @@ export const useSession = defineStore('session', () => {
     try {
       user.value = await api<SessionUser>('/auth/me')
     } catch (error) {
-      if (error instanceof ApiError && error.status === 401) user.value = null
+      if (error instanceof ApiError && [401, 403].includes(error.status)) user.value = null
     }
   }
   async function login(login: string, password: string) {
