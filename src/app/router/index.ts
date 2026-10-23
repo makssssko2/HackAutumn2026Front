@@ -1,0 +1,68 @@
+import { createRouter, createWebHistory } from 'vue-router'
+import { useSession } from '@/entities/session'
+
+export const router = createRouter({
+  history: createWebHistory(),
+  scrollBehavior: (_to, _from, saved) => saved || { top: 0 },
+  routes: [
+    { path: '/login', component: () => import('@/pages/login') },
+    { path: '/', component: () => import('@/pages/overview'), meta: { title: 'Обзор' } },
+    { path: '/payments', component: () => import('@/pages/payments'), meta: { title: 'Счета' } },
+    {
+      path: '/payments/new',
+      component: () => import('@/pages/create-payment'),
+      meta: { title: 'Новый платеж', admin: true },
+    },
+    {
+      path: '/payments/:id',
+      component: () => import('@/pages/payment-detail'),
+      meta: { title: 'Карточка счета' },
+    },
+    {
+      path: '/recurring',
+      component: () => import('@/pages/recurring'),
+      meta: { title: 'Регулярные платежи' },
+    },
+    {
+      path: '/calendar',
+      component: () => import('@/pages/calendar'),
+      meta: { title: 'Календарь' },
+    },
+    { path: '/budget', component: () => import('@/pages/budget'), meta: { title: 'Бюджет' } },
+    {
+      path: '/notifications',
+      component: () => import('@/pages/notifications'),
+      meta: { title: 'Уведомления' },
+    },
+    {
+      path: '/users',
+      component: () => import('@/pages/users'),
+      meta: { title: 'Пользователи', admin: true },
+    },
+    {
+      path: '/groups',
+      component: () => import('@/pages/groups'),
+      meta: { title: 'Группы рассылки', admin: true },
+    },
+    {
+      path: '/settings',
+      component: () => import('@/pages/settings'),
+      meta: { title: 'Подключения', admin: true },
+    },
+    {
+      path: '/audit',
+      component: () => import('@/pages/audit'),
+      meta: { title: 'Журнал действий', admin: true },
+    },
+    { path: '/:pathMatch(.*)*', component: () => import('@/pages/not-found') },
+  ],
+})
+
+router.beforeEach(async (to) => {
+  const session = useSession()
+  if (!session.ready) await session.restore()
+  if (!session.user && to.path !== '/login') return '/login'
+  if (session.user && to.path === '/login') return '/'
+  if (to.meta.admin && !session.isAdmin) return '/'
+  document.title = `${to.meta.title || 'Вход'} · Invoice Keeper`
+})

@@ -1,0 +1,12 @@
+name: invoice-keeper-front
+services:
+  front:
+    build: .
+    ports:
+      - "127.0.0.1:8080:80"
+    networks:
+      - backend
+networks:
+  backend:
+    external: true
+    name: invoice-keeper_default
