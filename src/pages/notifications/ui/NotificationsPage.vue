@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
+import { channelLabels } from '@/entities/channel'
 import { paymentTypeLabel, type Occurrence, type PaymentType } from '@/entities/payment'
 import { api, ApiError } from '@/shared/api'
 import { dateLabel, money, useAsyncData, usePagination } from '@/shared/lib'
@@ -58,7 +59,7 @@ function reset() {
 const labels: Record<string, string> = {
   pending: 'В очереди',
   sending: 'Отправляется',
-  sent: 'Доставлено',
+  sent: 'Отправлено',
   retry: 'Ожидает повтора',
   failed: 'Ошибка',
   uncertain: 'Проверьте доставку',
@@ -158,6 +159,7 @@ async function retry(id: string) {
             <p>Срок оплаты: {{ dateLabel(delivery.due_date) }}</p>
             <small
               >{{ delivery.channel_name }} ·
+              {{ channelLabels[delivery.channel_kind] || delivery.channel_kind }} ·
               {{
                 dateLabel(delivery.created_at, {
                   day: 'numeric',

@@ -54,6 +54,16 @@ The isolated `/pay/:token` page works without login and cannot access other invo
 
 The public `/invoice/:token` route is a separate read-only invoice sheet. It sends no session cookies and shows the explicit public projection: full description, amount/currency, type, due date, state and actual-date/delay details. It has no payment, document or administrative actions. Manual refresh and focus/visibility return load current data; aborted/stale requests cannot replace another invoice. Network refresh errors identify stale content, and a persistent polite status region announces refresh/state changes without taking focus. Invalid/revoked links have a dedicated state. Nginx disables caching/indexing/referrers and omits access logs for these capability paths. Deploy Back migration `0007` and set its `PUBLIC_FRONTEND_URL`; enable its delivery flag only after this route is live.
 
+## VK Teams and Mattermost
+
+In administrator **Подключения**, save a bot/server connection, choose **Проверить бота**, then add a recipient chat using its string ID (VK Teams chat ID or Mattermost Channel ID). One bot can serve several channels. Connections and channels support editing and independent enable/disable actions; enabling or changing a connection requires API validation again. Tokens are sent to Back, are not returned by its connection API, and are not persisted in browser storage; leaving an existing token field empty preserves it. Groups and invoice creation display readiness warnings alongside channel activation.
+
+API validation checks access to the bot API. Delivery, chat permissions and payment-button callbacks require a separate check in the target chat. **Тест** asks for confirmation because it queues an actual saved invoice with possible invoice data and demo-payment actions. Back selects the latest non-cancelled occurrence by due date; without one, create an invoice first. A queued result is not proof of delivery: inspect **Журнал рассылок** and then the message/buttons in the chat. Use a dedicated demo invoice and test chat when checking payment actions.
+
+Back owns encrypted credential storage, the running worker and provider callbacks. Mattermost needs its server to reach the public HTTPS callback address and support the Blocks cards used by the adapter; the bot must have access to the target channel and file-upload permission for receipts. VK Teams event handling requires the backend worker. The frontend does not configure these server prerequisites. Follow the inline provider instructions and deploy the matching Back integration routes/schema. Existing Telegram, SMTP and ordinary outgoing webhook channels remain available. Bitrix24 awaits a backend adapter; an ordinary webhook channel does not implement it.
+
+Frontend verification uses API fixtures; live VK Teams/Mattermost delivery and button callbacks have not been verified with real credentials.
+
 ## Screens
 
 Shared overview, invoices with type/status/currency/date filters, invoice detail, recurring schedules, calendar and monthly/yearly currency budget. Administrator-only creation, delivery journal, users, recipient groups, channel connections and audit. Descriptions appear in invoice lists/details, delivery entries and the public email invoice; empty descriptions do not create an empty block.

@@ -3,7 +3,13 @@ import { reactive, ref } from 'vue'
 import { api, jsonBody } from '@/shared/api'
 import { useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
-import { ChannelState, channelLabels, needsChat, type Channel } from '@/entities/channel'
+import {
+  ChannelState,
+  channelLabels,
+  channelWarning,
+  integrationApi,
+  type Channel,
+} from '@/entities/channel'
 interface Group {
   id: string
   name: string
@@ -12,13 +18,18 @@ interface Group {
 }
 const { data, loading, error, reload } = useAsyncData(
   async () => {
-    const [groups, channels] = await Promise.all([
+    const [groups, channels, connections] = await Promise.all([
       api<Group[]>('/groups'),
       api<Channel[]>('/channels'),
+      integrationApi.connections().catch(() => undefined),
     ])
-    return { groups, channels }
+    return { groups, channels, connections }
   },
-  { groups: [] as Group[], channels: [] as Channel[] },
+  {
+    groups: [] as Group[],
+    channels: [] as Channel[],
+    connections: undefined as Awaited<ReturnType<typeof integrationApi.connections>> | undefined,
+  },
 )
 const editing = ref<string | null>(null),
   showForm = ref(false),
@@ -102,7 +113,7 @@ async function remove(group: Group) {
         class="checkbox-label choice-row group-channel-choice"
         ><input v-model="form.channel_ids" type="checkbox" :value="channel.id" /><span
           >{{ channel.name }}<small>{{ channelLabels[channel.kind] }}</small></span
-        ><ChannelState :channel="channel"
+        ><ChannelState :channel="channel" :connections="data.connections"
       /></label>
     </fieldset>
     <p v-if="operationError" class="error-text" role="alert">{{ operationError }}</p>
@@ -125,8 +136,8 @@ async function remove(group: Group) {
               v-for="channel in data.channels.filter((c) => group.channel_ids.includes(c.id))"
               :key="channel.id"
               ><AppIcon :name="channel.kind" :size="15" />{{ channel.name
-              }}<small v-if="!channel.active || needsChat(channel)">
-                · {{ !channel.active ? 'отключен' : 'чат не привязан' }}</small
+              }}<small v-if="channelWarning(channel, data.connections)">
+                · {{ channelWarning(channel, data.connections) }}</small
               ></span
             ><span v-if="!group.channel_ids.length">Получатели не выбраны</span>
           </div>

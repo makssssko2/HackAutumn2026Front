@@ -1,6 +1,7 @@
 <script setup lang="ts">
-import { needsChat, type Channel } from '../model/channel'
-defineProps<{ channel: Channel }>()
+import { needsChat, channelWarning, type Channel } from '../model/channel'
+import { isIntegration, type IntegrationConnection } from '../model/integration'
+defineProps<{ channel: Channel; connections?: IntegrationConnection[] }>()
 </script>
 <template>
   <span class="channel-state">
@@ -13,5 +14,12 @@ defineProps<{ channel: Channel }>()
       :class="{ pending: needsChat(channel) }"
       >{{ needsChat(channel) ? 'Чат не привязан' : 'Чат привязан' }}</span
     >
+    <span
+      v-else-if="isIntegration(channel.kind)"
+      class="binding-state"
+      :class="{ pending: channel.active && channelWarning(channel, connections) }"
+    >
+      {{ channelWarning(channel, connections) || 'API бота проверен' }}
+    </span>
   </span>
 </template>

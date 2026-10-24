@@ -5,7 +5,8 @@ import { paymentApi, reminderWindow, type PaymentType } from '@/entities/payment
 import { useSession } from '@/entities/session'
 import {
   recipientChannels,
-  needsChat,
+  channelWarning,
+  integrationApi,
   channelLabels,
   type Channel,
   type AudienceGroup,
@@ -42,13 +43,18 @@ const {
   reload: reloadRecipients,
 } = useAsyncData(
   async () => {
-    const [groups, channels] = await Promise.all([
+    const [groups, channels, connections] = await Promise.all([
       api<AudienceGroup[]>('/groups'),
       api<Channel[]>('/channels'),
+      integrationApi.connections().catch(() => undefined),
     ])
-    return { groups, channels: channels.filter((channel) => channel.active) }
+    return { groups, channels: channels.filter((channel) => channel.active), connections }
   },
-  { groups: [] as AudienceGroup[], channels: [] as Channel[] },
+  {
+    groups: [] as AudienceGroup[],
+    channels: [] as Channel[],
+    connections: undefined as Awaited<ReturnType<typeof integrationApi.connections>> | undefined,
+  },
 )
 const targets = computed(() =>
   recipientMode.value === 'groups' && !form.group_ids.length
@@ -59,7 +65,10 @@ const targets = computed(() =>
         selectedGroupIds.value,
       ).filter((c) => c.kind !== 'inapp'),
 )
-const pendingChats = computed(() => targets.value.filter(needsChat).length)
+const pendingChats = computed(
+  () =>
+    targets.value.filter((channel) => channelWarning(channel, recipients.value.connections)).length,
+)
 const busy = ref(false),
   error = ref('')
 async function submit() {
@@ -239,7 +248,9 @@ async function submit() {
               >{{ channel.name
               }}<small
                 >{{ channelLabels[channel.kind]
-                }}<template v-if="needsChat(channel)"> · чат не привязан</template></small
+                }}<template v-if="channelWarning(channel, recipients.connections)">
+                  · {{ channelWarning(channel, recipients.connections) }}</template
+                ></small
               ></span
             >
           </li>
@@ -252,8 +263,8 @@ async function submit() {
           }}
         </p>
         <p v-if="pendingChats" class="recipient-warning">
-          Чатов без привязки: {{ pendingChats }}. Они включены, но отправка станет доступна после
-          подключения.
+          Получателей, требующих настройки: {{ pendingChats }}. Они остаются в аудитории. Проверьте
+          подключение бота и чата перед рассылкой.
         </p>
         <p class="field-help">
           Список по текущим подключениям. Адресаты определяются при выпуске уведомления. Результат

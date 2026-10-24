@@ -1,303 +1,565 @@
 <script setup lang="ts">
-import { reactive, ref } from 'vue'
+import { computed, nextTick, ref } from 'vue'
+import { RouterLink } from 'vue-router'
 import { useSession } from '@/entities/session'
-import { ChannelState, needsChat, type Channel } from '@/entities/channel'
+import {
+  ChannelState,
+  channelLabels,
+  channelWarning,
+  channelUpdatePayload,
+  connectionLabel,
+  integrationApi,
+  integrationError,
+  isIntegration,
+  type Channel,
+  type IntegrationConnection,
+} from '@/entities/channel'
 import { api, jsonBody } from '@/shared/api'
-import { useAsyncData } from '@/shared/lib'
+import { dateLabel, useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState } from '@/shared/ui'
+import ConnectionForm from './ConnectionForm.vue'
+import ChannelForm from './ChannelForm.vue'
+import IntegrationHelp from './IntegrationHelp.vue'
+import LegacyChannelHelp from './LegacyChannelHelp.vue'
+
 const session = useSession()
-const { data, loading, error, reload } = useAsyncData(() => api<Channel[]>('/channels'), [])
-const showForm = ref(false),
-  busy = ref(false),
+const {
+  data: channels,
+  loading,
+  error,
+  reload,
+} = useAsyncData(() => api<Channel[]>('/channels'), [])
+const integrations = useAsyncData(
+  async () => {
+    const [providers, connections] = await Promise.all([
+      integrationApi.providers(),
+      integrationApi.connections(),
+    ])
+    return { providers: providers.filter((p) => isIntegration(p.provider)), connections }
+  },
+  {
+    providers: [] as Awaited<ReturnType<typeof integrationApi.providers>>,
+    connections: [] as IntegrationConnection[],
+  },
+)
+const connectionList = computed(() =>
+  integrations.error.value ? undefined : integrations.data.value.connections,
+)
+const busy = ref(''),
   operationError = ref(''),
   message = ref('')
-const form = reactive({ name: '', kind: 'telegram', email: '', url: '', secret: '' })
+const connectionForm = ref(false),
+  editedConnection = ref<IntegrationConnection>()
+const channelForm = ref(false),
+  editedChannel = ref<Channel>(),
+  selectedConnection = ref<IntegrationConnection>()
 const telegramLink = ref<{ channel: string; url: string } | null>(null)
-const kindLabel: Record<string, string> = {
-  telegram: 'Telegram',
-  email: 'Email',
-  webhook: 'Webhook',
-  inapp: 'Внутри приложения',
+const testChannel = ref<Channel | null>(null)
+const addChannelButton = ref<HTMLButtonElement | null>(null)
+function openConnection(connection?: IntegrationConnection) {
+  editedConnection.value = connection
+  connectionForm.value = true
+  channelForm.value = false
+  operationError.value = ''
+  message.value = ''
 }
-async function operate(action: () => Promise<unknown>, success: string) {
-  busy.value = true
+function openChannel(connection?: IntegrationConnection, channel?: Channel) {
+  selectedConnection.value = connection
+  editedChannel.value = channel
+  channelForm.value = true
+  connectionForm.value = false
+  operationError.value = ''
+  message.value = ''
+}
+async function closeForm() {
+  connectionForm.value = false
+  channelForm.value = false
+  await nextTick()
+  addChannelButton.value?.focus()
+}
+function savedConnection(connection: IntegrationConnection) {
+  const existing = integrations.data.value.connections.filter((c) => c.id !== connection.id)
+  integrations.data.value = { ...integrations.data.value, connections: [...existing, connection] }
+}
+async function savedChannel() {
+  message.value = 'Канал сохранён. Отправьте тест и проверьте результат в журнале рассылок.'
+  channelForm.value = false
+  await reload()
+  await nextTick()
+  addChannelButton.value?.focus()
+}
+async function operate(id: string, action: () => Promise<unknown>, success: string) {
+  if (busy.value) return
+  busy.value = id
   operationError.value = ''
   message.value = ''
   try {
     await action()
-    await reload()
     message.value = success
   } catch (e) {
-    operationError.value = (e as Error).message
+    operationError.value = integrationError(e)
   } finally {
-    busy.value = false
+    busy.value = ''
   }
 }
-async function submit() {
-  const config =
-    form.kind === 'email'
-      ? { email: form.email }
-      : form.kind === 'webhook'
-        ? { url: form.url, secret: form.secret }
-        : {}
+async function validate(connection: IntegrationConnection) {
   await operate(
-    () =>
-      api('/channels', {
+    connection.id,
+    async () => {
+      try {
+        savedConnection(await integrationApi.validate(connection.id))
+      } catch (e) {
+        const current = await integrationApi.status(connection.id).catch(() => null)
+        if (current) savedConnection(current)
+        throw e
+      }
+    },
+    'API бота проверен. Отправку и работу кнопки проверьте в целевом чате.',
+  )
+}
+async function toggleConnection(connection: IntegrationConnection) {
+  await operate(
+    connection.id,
+    async () => {
+      savedConnection(await integrationApi.update(connection.id, { active: !connection.active }))
+    },
+    connection.active
+      ? 'Бот отключён для всех его чатов.'
+      : 'Бот включён. Проверьте API повторно перед отправкой.',
+  )
+}
+async function connectTelegram(channel: Channel) {
+  await operate(
+    channel.id,
+    async () => {
+      const result = await api<{ url: string }>(`/channels/${channel.id}/telegram-link`, {
         method: 'POST',
-        body: jsonBody({ name: form.name, kind: form.kind, config }),
-      }),
-    'Подключение создано',
+      })
+      telegramLink.value = { channel: channel.name, url: result.url }
+    },
+    'Откройте Telegram и выберите группу. Ссылка действует 10 минут.',
   )
-  if (!operationError.value) {
-    showForm.value = false
-    form.name = ''
-    form.secret = ''
-  }
 }
-async function connect(channel: Channel) {
-  await operate(async () => {
-    const result = await api<{ url: string }>(`/channels/${channel.id}/telegram-link`, {
-      method: 'POST',
-    })
-    telegramLink.value = { channel: channel.name, url: result.url }
-  }, 'Откройте Telegram и выберите группу. Ссылка действует 10 минут')
-}
-async function toggle(channel: Channel) {
+async function toggleChannel(channel: Channel) {
   await operate(
-    () =>
-      api(`/channels/${channel.id}`, {
+    channel.id,
+    async () => {
+      await api(`/channels/${channel.id}`, {
         method: 'PATCH',
-        body: jsonBody({
-          name: channel.name,
-          kind: channel.kind,
-          config: channel.config,
-          active: !channel.active,
-        }),
-      }),
-    channel.active ? 'Канал отключен' : 'Канал включен',
+        body: jsonBody(channelUpdatePayload(channel, { active: !channel.active })),
+      })
+      await reload()
+    },
+    channel.active ? 'Канал отключён.' : 'Канал включён.',
   )
+}
+async function sendTest(channel: Channel) {
+  await operate(
+    channel.id,
+    () => api(`/channels/${channel.id}/test`, { method: 'POST' }),
+    'Тест поставлен в очередь. Результат отправки появится в журнале рассылок.',
+  )
+  testChannel.value = null
+}
+function connectionFor(channel: Channel) {
+  return connectionList.value?.find((c) => c.id === channel.connection_id)
 }
 </script>
 <template>
   <div class="page-heading">
     <div>
       <h1>Подключения</h1>
-      <p>Куда отправлять счета и напоминания команды.</p>
+      <p>Подключите бота один раз и выберите чаты, в которые будут приходить счета.</p>
     </div>
-    <button class="button" @click="showForm = !showForm">
+    <button ref="addChannelButton" class="button" @click="openChannel()">
       <AppIcon name="plus" :size="18" />Добавить канал
     </button>
   </div>
-  <div class="setup-note">
-    <AppIcon name="settings" :size="22" />
-    <p>
-      Часовой пояс: <strong>{{ session.settings?.timezone }}</strong
-      >. Токен бота и параметры SMTP задаются на сервере через <code>.env</code>.
-    </p>
+  <div v-if="message" class="success-box" role="status">
+    {{ message }}
+    <RouterLink v-if="message.startsWith('Тест')" to="/notifications">Открыть журнал</RouterLink>
   </div>
-  <details class="panel telegram-setup-guide">
-    <summary>Как подключить Telegram-бота</summary>
-    <ol>
-      <li>Создайте бота через @BotFather командой /newbot и скопируйте выданный токен.</li>
-      <li>
-        На сервере откройте <code>Back/.env</code> и заполните
-        <code>TELEGRAM_BOT_TOKEN=ваш_токен</code>.
-      </li>
-      <li>
-        Из папки Back запустите:
-        <pre><code>docker compose --profile telegram up -d --build --force-recreate api worker bot</code></pre>
-      </li>
-      <li>Здесь нажмите «Добавить канал», выберите Telegram и задайте название группы.</li>
-      <li>
-        Нажмите «Подключить чат» → «Выбрать группу в Telegram». Выберите группу, где вы
-        администратор, и подтвердите добавление бота. Код передается автоматически, вводить команды
-        не нужно. Боту должна быть разрешена отправка сообщений и файлов.
-      </li>
-      <li>
-        Нажмите «Обновить», затем «Тест». После привязки выставляйте новые счета — бот отправит их в
-        группу.
-      </li>
-    </ol>
-    <p class="field-help">
-      Участники нажимают «Оплатить» прямо в сообщении. Вход в веб-панель им не нужен.
-    </p>
-  </details>
-  <details class="panel telegram-setup-guide">
-    <summary>Как настроить отправку писем</summary>
-    <p>
-      Приложение на VPS отправляет письма через почтовый ящик. Отдельный почтовый сервер на VPS не
-      нужен.
-    </p>
-    <ol>
-      <li>
-        Заведите ящик для уведомлений, например в Яндекс.Почте. В настройках разрешите доступ
-        почтовым программам и создайте пароль приложения для Почты.
-      </li>
-      <li>
-        В Back/.env укажите параметры отправителя. Пример для Яндекс.Почты — замените имя ящика и
-        пароль на свои:
-        <pre><code>SMTP_HOST=smtp.yandex.ru
-SMTP_PORT=465
-SMTP_SSL=true
-SMTP_STARTTLS=false
-SMTP_USERNAME=имя_ящика
-SMTP_PASSWORD=пароль_приложения
-SMTP_FROM=имя_ящика@yandex.ru</code></pre>
-      </li>
-      <li>
-        Из папки Back выполните <code>docker compose up -d --force-recreate api worker</code>.
-      </li>
-      <li>
-        Нажмите «Добавить канал» → «Email через SMTP», укажите адрес получателя и сохраните. Затем
-        нажмите «Тест» и проверьте журнал рассылок.
-      </li>
-    </ol>
-    <p class="field-help">
-      Пароль хранится только в Back/.env. Для другого почтового сервиса используйте его настройки
-      SMTP. Поддерживаются SSL на порту 465 и STARTTLS на порту 587.
-    </p>
-  </details>
-  <div v-if="message" class="success-box" role="status">{{ message }}</div>
   <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
-  <form v-if="showForm" class="panel form-panel compact-form" @submit.prevent="submit">
+  <section class="integration-section" aria-labelledby="integration-title">
     <div class="section-heading">
-      <h2>Новый канал</h2>
+      <div>
+        <h2 id="integration-title">Боты и серверы</h2>
+        <p>VK Teams и Mattermost. Одно подключение — несколько чатов-получателей.</p>
+      </div>
       <button
-        class="icon-button"
-        type="button"
-        aria-label="Закрыть форму"
-        @click="showForm = false"
+        class="button secondary"
+        :disabled="
+          integrations.loading.value ||
+          !!integrations.error.value ||
+          !integrations.data.value.providers.length
+        "
+        @click="openConnection()"
       >
-        <AppIcon name="close" />
+        <AppIcon name="plus" :size="17" />Подключить бота
       </button>
     </div>
-    <div class="form-grid">
-      <label
-        >Название<input
-          v-model="form.name"
-          required
-          maxlength="120"
-          placeholder="Например, общий чат команды" /></label
-      ><label
-        >Способ доставки<select v-model="form.kind">
-          <option value="telegram">Telegram</option>
-          <option value="email">Email через SMTP</option>
-          <option value="webhook">Webhook</option>
-        </select></label
-      ><label v-if="form.kind === 'email'"
-        >Email получателя<input
-          v-model="form.email"
-          type="email"
-          required
-          placeholder="team@example.com" /></label
-      ><template v-if="form.kind === 'webhook'"
-        ><label
-          >Адрес webhook<input
-            v-model="form.url"
-            type="url"
-            required
-            placeholder="https://example.com/invoice-events" /></label
-        ><label
-          >Секрет подписи <span class="optional">необязательно</span
-          ><input v-model="form.secret" type="password" autocomplete="new-password" /></label
-      ></template>
-    </div>
-    <p v-if="form.kind === 'telegram'" class="field-help">
-      После создания нажмите «Подключить чат» и выберите группу в Telegram. Вводить команды не
-      нужно.
+    <p v-if="integrations.loading.value" class="muted" role="status">
+      Загружаем подключения ботов…
     </p>
-    <div class="form-actions">
-      <button class="button" :disabled="busy">{{ busy ? 'Создаем…' : 'Добавить канал' }}</button>
+    <div v-else-if="integrations.error.value" class="error-box" role="alert">
+      Не удалось загрузить подключения ботов. Остальные каналы доступны.
+      <button class="text-button" @click="integrations.reload">Повторить</button>
     </div>
-  </form>
-  <section v-if="telegramLink" class="panel telegram-link-panel">
-    <div class="section-heading">
-      <h2>Подключить «{{ telegramLink.channel }}»</h2>
-      <button
-        class="icon-button"
-        aria-label="Скрыть подключение Telegram"
-        @click="telegramLink = null"
+    <div v-else-if="integrations.data.value.connections.length" class="panel bot-list">
+      <article
+        v-for="connection in integrations.data.value.connections"
+        :key="connection.id"
+        class="bot-row"
       >
-        <AppIcon name="close" />
-      </button>
-    </div>
-    <p>
-      Откройте Telegram, выберите группу, где вы администратор, и подтвердите добавление бота.
-      Привязка произойдет автоматически.
-    </p>
-    <a :href="telegramLink.url" class="button" target="_blank" rel="noopener noreferrer"
-      ><AppIcon name="telegram" :size="18" />Выбрать группу в Telegram</a
-    >
-    <p class="field-help">
-      Ссылка одноразовая, действует 10 минут. После подтверждения в Telegram проверьте привязку
-      здесь.
-    </p>
-    <p class="field-help">
-      Для рассылки канал должен быть включен и иметь привязанный чат. Активность канала и привязка
-      чата настраиваются независимо.
-    </p>
-    <button class="button secondary" @click="reload">Проверить привязку</button>
-  </section>
-  <AsyncState :loading="loading" :error="error" @retry="reload"
-    ><section class="panel channel-list">
-      <article v-for="channel in data" :key="channel.id" class="channel-row">
-        <span class="channel-symbol"><AppIcon :name="channel.kind" :size="24" /></span>
-        <div class="channel-description">
-          <h2>{{ channel.name }}</h2>
-          <p>
-            {{ kindLabel[channel.kind]
-            }}<span v-if="channel.kind === 'telegram'">
-              ·
-              {{
-                channel.config.chat_id ? `Чат ${channel.config.chat_id}` : 'Чат не привязан'
-              }}</span
-            ><span v-if="channel.kind === 'email'"> · {{ channel.config.email }}</span
-            ><span v-if="channel.kind === 'webhook'"> · {{ channel.config.url }}</span>
-          </p>
-          <small v-if="needsChat(channel)" class="binding-hint"
-            >Отправка станет доступна после привязки чата. Канал можно оставить включенным.</small
-          >
-          <small
-            v-if="channel.kind === 'telegram' && !session.settings?.telegram_configured"
-            class="warning-text"
-            >Токен Telegram-бота пока не задан</small
-          ><small
-            v-if="channel.kind === 'email' && !session.settings?.smtp_configured"
-            class="warning-text"
-            >SMTP пока не настроен</small
+        <AppIcon :name="connection.provider" :size="24" />
+        <div class="bot-description">
+          <h3>{{ connection.name }}</h3>
+          <p>{{ channelLabels[connection.provider] }} · {{ connection.base_url }}</p>
+          <small v-if="connection.last_checked_at"
+            >Проверка:
+            {{
+              dateLabel(connection.last_checked_at, {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            }}</small
+          ><small v-if="connection.last_event_at"
+            >Последнее событие:
+            {{
+              dateLabel(connection.last_event_at, {
+                day: 'numeric',
+                month: 'short',
+                hour: '2-digit',
+                minute: '2-digit',
+              })
+            }}</small
           >
         </div>
-        <ChannelState :channel="channel" />
-        <div class="channel-actions">
+        <span
+          class="status"
+          :class="
+            !connection.active
+              ? 'cancelled'
+              : connection.health_status === 'healthy'
+                ? 'paid'
+                : connection.health_status === 'error'
+                  ? 'overdue'
+                  : 'unpaid'
+          "
+          >{{ connectionLabel(connection) }}</span
+        >
+        <div class="bot-actions">
           <button
-            v-if="channel.kind === 'telegram'"
-            class="button small secondary"
-            :disabled="busy"
-            @click="connect(channel)"
-          >
-            {{ channel.config.chat_id ? 'Перепривязать' : 'Подключить чат' }}</button
-          ><button
             class="text-button"
-            :disabled="busy || !channel.active || needsChat(channel)"
-            :title="needsChat(channel) ? 'Сначала привяжите Telegram-чат' : undefined"
-            @click="
-              operate(
-                () => api(`/channels/${channel.id}/test`, { method: 'POST' }),
-                'Тест отправлен в очередь. Результат появится в уведомлениях.',
-              )
-            "
+            :disabled="!!busy || !connection.active"
+            @click="validate(connection)"
           >
-            Тест</button
-          ><button
-            v-if="channel.kind !== 'inapp'"
-            class="text-button"
-            :disabled="busy"
-            @click="toggle(channel)"
+            {{ busy === connection.id ? 'Подождите…' : 'Проверить бота' }}
+          </button>
+          <button class="text-button" :disabled="!!busy" @click="openConnection(connection)">
+            Настроить
+          </button>
+          <button
+            class="button secondary small"
+            :disabled="!!busy || !connection.active || connection.health_status !== 'healthy'"
+            @click="openChannel(connection)"
           >
-            {{ channel.active ? 'Отключить' : 'Включить' }}
+            Добавить чат
+          </button>
+          <button class="text-button" :disabled="!!busy" @click="toggleConnection(connection)">
+            {{ connection.active ? 'Отключить бота' : 'Включить бота' }}
           </button>
         </div>
       </article>
-    </section></AsyncState
-  >
+    </div>
+    <p v-else class="integration-empty">
+      Ботов пока нет. Подключите VK Teams или Mattermost, чтобы команда подтверждала оплату прямо в
+      чате.
+    </p>
+    <ConnectionForm
+      v-if="connectionForm"
+      :key="editedConnection?.id || 'new'"
+      :connection="editedConnection"
+      :providers="integrations.data.value.providers"
+      @close="closeForm"
+      @saved="savedConnection"
+      @chat="openChannel"
+    />
+  </section>
+  <section class="recipient-section" aria-labelledby="recipient-title">
+    <div class="section-heading">
+      <div>
+        <h2 id="recipient-title">Каналы-получатели</h2>
+        <p>Чаты, почта и внешние сервисы. Выбираются при выставлении счёта и в группах рассылки.</p>
+      </div>
+      <button class="text-button" :disabled="loading" @click="reload">Обновить список</button>
+    </div>
+    <ChannelForm
+      v-if="channelForm"
+      :key="`${editedChannel?.id || 'new'}-${selectedConnection?.id || ''}`"
+      :channel="editedChannel"
+      :connection="selectedConnection"
+      :connections="integrations.data.value.connections"
+      :providers="integrations.data.value.providers"
+      @close="closeForm"
+      @saved="savedChannel"
+      @connect="openConnection()"
+    />
+    <section v-if="telegramLink" class="panel telegram-link-panel">
+      <div class="section-heading">
+        <h3>Подключить «{{ telegramLink.channel }}»</h3>
+        <button
+          class="icon-button"
+          aria-label="Скрыть подключение Telegram"
+          @click="telegramLink = null"
+        >
+          <AppIcon name="close" />
+        </button>
+      </div>
+      <p>
+        Выберите группу, где вы администратор, и подтвердите добавление бота. Ссылка одноразовая и
+        действует 10 минут.
+      </p>
+      <a :href="telegramLink.url" class="button" target="_blank" rel="noopener noreferrer"
+        >Выбрать группу в Telegram</a
+      >
+      <button class="button secondary" @click="reload">Проверить привязку</button>
+    </section>
+    <AsyncState :loading="loading" :error="error" @retry="reload">
+      <section v-if="channels.length" class="panel channel-list">
+        <article v-for="channel in channels" :key="channel.id" class="channel-row">
+          <span class="channel-symbol"><AppIcon :name="channel.kind" :size="24" /></span>
+          <div class="channel-description">
+            <h3>{{ channel.name }}</h3>
+            <p>
+              {{ channelLabels[channel.kind] || channel.kind
+              }}<template v-if="isIntegration(channel.kind)">
+                · {{ connectionFor(channel)?.name || 'Подключение недоступно' }} ·
+                {{ channel.remote_chat_id || 'Чат не указан' }}</template
+              ><template v-else-if="channel.kind === 'telegram' && channel.config.chat_id">
+                · Чат {{ channel.config.chat_id }}</template
+              ><template v-else-if="channel.kind === 'email'">
+                · {{ channel.config.email }}</template
+              ><template v-else-if="channel.kind === 'webhook'">
+                · {{ channel.config.url }}</template
+              >
+            </p>
+            <small
+              v-if="channel.kind === 'telegram' && !session.settings?.telegram_configured"
+              class="warning-text"
+              >Токен Telegram-бота пока не задан</small
+            ><small
+              v-if="channel.kind === 'email' && !session.settings?.smtp_configured"
+              class="warning-text"
+              >SMTP пока не настроен</small
+            >
+          </div>
+          <ChannelState :channel="channel" :connections="connectionList" />
+          <div class="channel-actions">
+            <button
+              v-if="channel.kind === 'telegram'"
+              class="button small secondary"
+              :disabled="!!busy"
+              @click="connectTelegram(channel)"
+            >
+              {{ channel.config.chat_id ? 'Перепривязать' : 'Подключить чат' }}
+            </button>
+            <button
+              v-if="channel.kind !== 'inapp'"
+              class="text-button"
+              :disabled="!!busy"
+              @click="openChannel(undefined, channel)"
+            >
+              Изменить
+            </button>
+            <button
+              class="text-button"
+              :disabled="!!busy || !!channelWarning(channel, connectionList)"
+              @click="testChannel = channel"
+            >
+              Тест
+            </button>
+            <button
+              v-if="channel.kind !== 'inapp'"
+              class="text-button"
+              :disabled="!!busy"
+              @click="toggleChannel(channel)"
+            >
+              {{ channel.active ? 'Отключить' : 'Включить' }}
+            </button>
+          </div>
+          <div
+            v-if="testChannel?.id === channel.id"
+            class="test-confirmation"
+            role="group"
+            :aria-label="`Тест канала ${channel.name}`"
+          >
+            <p>
+              Отправить тест в «{{ channel.name }}»? Сервер использует один из сохранённых счетов. В
+              сообщении могут быть данные счёта и кнопка демонстрационной оплаты.
+            </p>
+            <div class="test-actions">
+              <button class="button secondary small" :disabled="!!busy" @click="sendTest(channel)">
+                Отправить тест</button
+              ><button class="text-button" :disabled="!!busy" @click="testChannel = null">
+                Отмена
+              </button>
+            </div>
+          </div>
+        </article>
+      </section>
+      <p v-else class="integration-empty">Добавьте первый канал, чтобы отправлять счета команде.</p>
+    </AsyncState>
+  </section>
+  <section class="connection-guides" aria-labelledby="connection-guides-title">
+    <h2 id="connection-guides-title">Инструкции подключения</h2>
+    <IntegrationHelp /><LegacyChannelHelp />
+    <details class="integration-future">
+      <summary>Битрикс24 — следующий этап</summary>
+      <p>
+        Подключение Битрикс24 появится после добавления адаптера на сервере. Сейчас доступны VK
+        Teams и Mattermost; вводить webhook Битрикс24 в форму обычного webhook не нужно.
+      </p>
+    </details>
+    <p class="field-help">
+      Часовой пояс: {{ session.settings?.timezone }}. Настройки Telegram и отправителя SMTP задаются
+      администратором сервера.
+    </p>
+  </section>
 </template>
+<style scoped>
+.integration-section {
+  margin: 30px 0 36px;
+}
+.recipient-section {
+  margin-bottom: 38px;
+}
+.section-heading {
+  align-items: flex-start;
+  flex-wrap: wrap;
+}
+.section-heading p {
+  max-width: 70ch;
+}
+.bot-row {
+  display: grid;
+  grid-template-columns: 26px minmax(0, 1fr) auto;
+  gap: 14px;
+  padding: 22px 24px;
+  align-items: center;
+}
+.bot-row + .bot-row {
+  border-top: 1px solid var(--line);
+}
+.bot-row > svg {
+  color: var(--accent-ink);
+}
+.bot-description {
+  min-width: 0;
+}
+.bot-description h3,
+.channel-description h3 {
+  font-size: 15px;
+}
+.bot-description p {
+  margin-top: 5px;
+  overflow-wrap: anywhere;
+  color: var(--muted);
+  font-size: var(--text-secondary);
+}
+.bot-description small {
+  display: block;
+  margin-top: 5px;
+  color: var(--muted);
+}
+.bot-actions {
+  grid-column: 2 / -1;
+  display: flex;
+  gap: 10px 18px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.integration-empty {
+  padding: 22px 0;
+  border-top: 1px solid var(--line);
+  color: var(--muted);
+  max-width: 75ch;
+}
+.channel-description {
+  min-width: 0;
+}
+.channel-description p {
+  overflow-wrap: anywhere;
+}
+.channel-row {
+  flex-wrap: wrap;
+}
+.channel-actions {
+  flex-wrap: wrap;
+}
+.test-confirmation {
+  flex-basis: 100%;
+  padding: 16px 0 0;
+  border-top: 1px solid var(--line);
+}
+.test-confirmation p {
+  max-width: 75ch;
+  margin-bottom: 12px;
+}
+.test-actions {
+  display: flex;
+  align-items: center;
+  gap: 18px;
+  flex-wrap: wrap;
+}
+.connection-guides > h2 {
+  margin-bottom: 18px;
+}
+.connection-guides :deep(.telegram-setup-guide) {
+  border: 0;
+  border-top: 1px solid var(--line);
+  border-radius: 0;
+  padding: 16px 0;
+  margin: 0;
+  background: transparent;
+}
+.integration-future {
+  padding: 16px 0;
+  border-top: 1px solid var(--line);
+}
+.integration-future summary {
+  cursor: pointer;
+  font-weight: 600;
+}
+.integration-future p {
+  color: var(--muted);
+  margin-top: 14px;
+  max-width: 74ch;
+}
+.connection-guides > .field-help {
+  margin-top: 22px;
+}
+@media (max-width: 640px) {
+  .bot-row {
+    padding: 18px;
+    grid-template-columns: 24px minmax(0, 1fr);
+  }
+  .bot-row > .status {
+    grid-column: 2;
+    justify-self: start;
+  }
+  .bot-actions {
+    grid-column: 1 / -1;
+    gap: 8px 16px;
+  }
+  .bot-actions .text-button,
+  .channel-actions .text-button {
+    min-height: 44px;
+  }
+  .channel-actions {
+    width: 100%;
+  }
+}
+</style>

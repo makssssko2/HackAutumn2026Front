@@ -1,5 +1,5 @@
 import { beforeEach, afterEach, describe, expect, it, vi } from 'vitest'
-import { api } from './client'
+import { api, ApiError } from './client'
 
 const fetchMock = vi.fn()
 const dispatch = vi.fn()
@@ -12,6 +12,22 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('public request session isolation', () => {
+  it('preserves structured integration failures for actionable feedback', async () => {
+    fetchMock.mockResolvedValue(
+      new Response(
+        JSON.stringify({ detail: { code: 'credentials_invalid', message: 'Проверьте токен' } }),
+        { status: 422 },
+      ),
+    )
+    const error = await api('/integrations/connections/id/validate', { method: 'POST' }).catch(
+      (error) => error,
+    )
+    expect(error).toBeInstanceOf(ApiError)
+    if (!(error instanceof ApiError)) throw error
+    expect(error.code).toBe('credentials_invalid')
+    expect(error.message).toBe('Проверьте токен')
+    expect(dispatch).not.toHaveBeenCalled()
+  })
   it('keeps authenticated requests using the current session', async () => {
     fetchMock.mockResolvedValue(new Response(JSON.stringify({ id: 'current' }), { status: 200 }))
     expect(await api('/auth/me')).toEqual({ id: 'current' })
