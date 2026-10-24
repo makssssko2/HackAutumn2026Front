@@ -14,6 +14,12 @@ User-pinned Aeza palette, confirmed by three current screenshots supplied by the
 - Success: #196344 on #eaf5ed; danger: #a33230 on #fceeed; warning: #885315 on #fff3df.
 - Primary actions are orange with dark text for readable contrast; warm peach identifies active navigation and contextual selection. Graphite provides strong secondary contrast.
 
+## Themes
+
+Light and dark themes share semantic CSS tokens in `src/app/styles/main.css`. Dark mode uses warm graphite ground #1b1917, raised surfaces #24211e, sidebar #201e1b, ivory text #f3eee8 and secondary text #b7aea4. Orange #ff922e remains the primary action with fixed graphite ink; links and focus use lighter orange. Peach selections become warm brown surfaces. Success, warning and danger retain explicit labels and use separate dark backgrounds with readable pastel text. Charts, native fields, selection, scrollbars, overlays and public invoice sheets follow the same theme.
+
+The sun/moon button is available in the workspace header, login and public invoice pages, with a 44px target, visible keyboard focus and `aria-pressed`. On first visit the theme follows the operating system; an explicit choice is saved under `invoice-keeper-theme` in localStorage and synchronized across tabs. The head bootstrap applies the theme before the application loads. If storage is unavailable, switching still works for the current page.
+
 ## Typography and layout
 
 One system sans family, Russian-friendly. Compact UI with a 14px base and 28–34px screen headings. Tabular numerals for amounts and dates. 246px left navigation, content width up to 1560px. At narrow widths navigation becomes an explicit menu and multi-column sections collapse. Ledger scrolls within its container, never the document.

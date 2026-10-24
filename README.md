@@ -68,4 +68,6 @@ The main invoice list sorts loaded rows by due date or actual payment date. Clic
 
 `PRODUCT.md` records confirmed requirements. `DESIGN.md` records the visual system. Current user-provided Aeza screenshots define orange, pale peach, white and graphite. Impeccable's Operate guidance informs hierarchy, restrained decoration, keyboard focus, responsive structure and explicit state feedback. Invoice Keeper retains its own identity.
 
+The sun/moon button in the header switches light and dark themes; it is also available before login and on public invoice pages. The first visit follows the system color scheme. An explicit choice is saved locally and synchronized across tabs. `public/theme-init.js` applies it before the app renders, while shared semantic CSS tokens cover forms, tables, calendar, budget charts and payment states in both themes.
+
 GitHub: https://github.com/makssssko2/HackAutumn2026Front. Deployment: https://aezainvoice.xxxmgxxx.com. Environment files remain ignored.

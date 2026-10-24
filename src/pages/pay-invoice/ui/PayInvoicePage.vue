@@ -191,9 +191,9 @@ watch(path, load, { immediate: true })
   max-width: 540px;
   margin: auto;
   padding: 36px;
-  background: white;
+  background: var(--surface);
   border-radius: 16px;
-  box-shadow: 0 12px 40px rgb(74 43 17 / 7%);
+  box-shadow: 0 12px 40px var(--sheet-shadow);
 }
 .recipient-status {
   display: flex;
@@ -264,7 +264,7 @@ dd {
   width: 100%;
   margin-top: 8px;
   min-height: 48px;
-  background: #fff;
+  background: var(--surface);
   caret-color: var(--accent-ink);
 }
 .recipient-demo {
@@ -277,14 +277,14 @@ dd {
   width: 100%;
   min-height: 50px;
   background: var(--accent);
-  color: var(--ink);
+  color: var(--accent-contrast);
   justify-content: center;
   font-weight: 600;
   font-size: 15px;
 }
 .recipient-submit:hover {
   background: var(--accent-hover);
-  color: var(--ink);
+  color: var(--accent-contrast);
 }
 .recipient-footer {
   text-align: center;

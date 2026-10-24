@@ -2,7 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useSession } from '@/entities/session'
-import { AppIcon } from '@/shared/ui'
+import { AppIcon, ThemeToggle } from '@/shared/ui'
 import { dateLabel } from '@/shared/lib'
 const session = useSession()
 const route = useRoute()
@@ -119,7 +119,10 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <RouterView v-if="route.path === '/login' || route.meta.public" />
+  <div v-if="route.path === '/login' || route.meta.public" class="public-shell">
+    <div class="public-theme-toolbar"><ThemeToggle /></div>
+    <RouterView />
+  </div>
   <div v-else-if="session.user" class="workspace">
     <a class="skip-link" href="#main-content">К содержимому</a
     ><button
@@ -216,8 +219,9 @@ onUnmounted(() => {
           ><strong>{{ route.meta.title || 'Страница' }}</strong>
         </div>
         <div class="topbar-right">
-          <span class="timezone">{{ session.settings?.timezone }}</span
-          ><RouterLink
+          <span class="timezone">{{ session.settings?.timezone }}</span>
+          <ThemeToggle />
+          <RouterLink
             v-if="session.isAdmin"
             to="/notifications"
             class="icon-button"
