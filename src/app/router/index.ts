@@ -6,6 +6,11 @@ export const router = createRouter({
   scrollBehavior: (_to, _from, saved) => saved || { top: 0 },
   routes: [
     {
+      path: '/invoice/:token',
+      component: () => import('@/pages/invoice-view'),
+      meta: { public: true, title: 'Просмотр счёта' },
+    },
+    {
       path: '/pay/:token',
       component: () => import('@/pages/pay-invoice'),
       meta: { public: true, title: 'Оплата счета' },
@@ -79,7 +84,7 @@ export const router = createRouter({
 
 router.beforeEach(async (to) => {
   if (to.meta.public) {
-    document.title = 'Оплата счета · Invoice Keeper'
+    document.title = `${to.meta.title || 'Просмотр счёта'} · Invoice Keeper`
     return true
   }
   const session = useSession()

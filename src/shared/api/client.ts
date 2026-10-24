@@ -10,7 +10,7 @@ export class ApiError extends Error {
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
   const response = await fetch(`/api/v1${path}`, {
     ...options,
-    credentials: 'include',
+    credentials: options.credentials ?? 'include',
     headers: {
       ...(options.body && !(options.body instanceof FormData)
         ? { 'Content-Type': 'application/json' }
@@ -28,7 +28,7 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     } catch {
       /* Keep a readable fallback for non-JSON errors. */
     }
-    if (response.status === 401 && !path.startsWith('/auth/'))
+    if (response.status === 401 && options.credentials !== 'omit' && !path.startsWith('/auth/'))
       window.dispatchEvent(new Event('session-expired'))
     throw new ApiError(response.status, message)
   }

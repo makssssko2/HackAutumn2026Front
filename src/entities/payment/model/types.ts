@@ -1,5 +1,18 @@
 import type { Currency } from '@/shared/lib'
 export type PaymentType = 'recurring' | 'one_time'
+export interface PublicInvoiceView {
+  title: string
+  description: string
+  amount: string
+  currency: Currency
+  payment_type: PaymentType
+  due_date: string
+  paid: boolean
+  cancelled: boolean
+  paid_at: string | null
+  overdue_days: number
+  status: 'paid' | 'unpaid' | 'overdue' | 'cancelled'
+}
 export interface Occurrence {
   id: string
   recurring_id: string
