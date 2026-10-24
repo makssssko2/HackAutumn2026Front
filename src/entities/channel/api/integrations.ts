@@ -1,9 +1,9 @@
-import { api, jsonBody } from '@/shared/api'
+import { api, jsonBody, allPages } from '@/shared/api'
 import type { IntegrationConnection, IntegrationProvider } from '../model/integration'
 
 export const integrationApi = {
   providers: () => api<IntegrationProvider[]>('/integrations/providers'),
-  connections: () => api<IntegrationConnection[]>('/integrations/connections'),
+  connections: () => allPages<IntegrationConnection>('/integrations/connections'),
   create: (body: unknown) =>
     api<IntegrationConnection>('/integrations/connections', {
       method: 'POST',

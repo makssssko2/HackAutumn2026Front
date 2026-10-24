@@ -2,9 +2,17 @@
 import { reactive, ref } from 'vue'
 import type { SessionUser } from '@/entities/session'
 import { api, jsonBody } from '@/shared/api'
-import { useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState } from '@/shared/ui'
-const { data, loading, error, reload } = useAsyncData(() => api<SessionUser[]>('/users'), [])
+import { usePagedList } from '@/shared/lib'
+import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
+const {
+  rows: data,
+  total,
+  page,
+  pageSize,
+  loading,
+  error,
+  reload,
+} = usePagedList<SessionUser>('/users')
 const editing = ref<string | null>(null),
   showForm = ref(false),
   busy = ref(false),
@@ -171,6 +179,13 @@ async function remove(user: SessionUser) {
             </td>
           </tr>
         </tbody>
-      </table></section
-  ></AsyncState>
+      </table>
+    </section>
+    <Pagination
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      :loading="loading"
+      label="Страницы пользователей"
+  /></AsyncState>
 </template>

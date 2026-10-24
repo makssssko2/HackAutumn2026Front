@@ -1,8 +1,8 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
-import { api, jsonBody } from '@/shared/api'
-import { useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
+import { api, jsonBody, allPages } from '@/shared/api'
+import { useAsyncData, usePagedList } from '@/shared/lib'
+import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 import {
   ChannelState,
   channelLabels,
@@ -16,17 +16,29 @@ interface Group {
   description: string
   channel_ids: string[]
 }
-const { data, loading, error, reload } = useAsyncData(
+const {
+  rows: groups,
+  total,
+  page,
+  pageSize,
+  loading,
+  error,
+  reload,
+} = usePagedList<Group>('/groups')
+const {
+  data,
+  loading: choicesLoading,
+  error: choicesError,
+  reload: reloadChoices,
+} = useAsyncData(
   async () => {
-    const [groups, channels, connections] = await Promise.all([
-      api<Group[]>('/groups'),
-      api<Channel[]>('/channels'),
+    const [channels, connections] = await Promise.all([
+      allPages<Channel>('/channels'),
       integrationApi.connections().catch(() => undefined),
     ])
-    return { groups, channels, connections }
+    return { channels, connections }
   },
   {
-    groups: [] as Group[],
     channels: [] as Channel[],
     connections: undefined as Awaited<ReturnType<typeof integrationApi.connections>> | undefined,
   },
@@ -45,6 +57,7 @@ function open(group?: Group) {
   showForm.value = true
 }
 async function submit() {
+  if (choicesLoading.value || choicesError.value) return
   busy.value = true
   operationError.value = ''
   try {
@@ -107,6 +120,13 @@ async function remove(group: Group) {
     </div>
     <fieldset>
       <legend>Подключенные получатели</legend>
+      <p v-if="choicesLoading" role="status">Загружаем получателей…</p>
+      <div v-else-if="choicesError" class="error-box" role="alert">
+        <p>{{ choicesError }}</p>
+        <button type="button" class="button secondary small" @click="reloadChoices">
+          Повторить загрузку получателей
+        </button>
+      </div>
       <label
         v-for="channel in data.channels"
         :key="channel.id"
@@ -118,15 +138,15 @@ async function remove(group: Group) {
     </fieldset>
     <p v-if="operationError" class="error-text" role="alert">{{ operationError }}</p>
     <div class="form-actions">
-      <button class="button" :disabled="busy">
+      <button class="button" :disabled="busy || choicesLoading || !!choicesError">
         {{ busy ? 'Сохраняем…' : 'Сохранить группу' }}
       </button>
     </div>
   </form>
   <p v-if="operationError && !showForm" class="error-box" role="alert">{{ operationError }}</p>
   <AsyncState :loading="loading" :error="error" @retry="reload"
-    ><section v-if="data.groups.length" class="panel group-list">
-      <article v-for="group in data.groups" :key="group.id" class="group-row">
+    ><section v-if="groups.length" class="panel group-list">
+      <article v-for="group in groups" :key="group.id" class="group-row">
         <span class="notification-symbol"><AppIcon name="groups" :size="22" /></span>
         <div class="group-description">
           <h2>{{ group.name }}</h2>
@@ -156,6 +176,11 @@ async function remove(group: Group) {
       v-else
       title="Создайте первую группу"
       description="Объедините чаты, email и webhook для адресной рассылки."
-      icon="groups"
+      icon="groups" /><Pagination
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      :loading="loading"
+      label="Страницы групп рассылки"
   /></AsyncState>
 </template>

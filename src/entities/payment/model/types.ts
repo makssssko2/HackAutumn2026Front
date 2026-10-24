@@ -63,6 +63,7 @@ export interface HistoryItem {
   details: Record<string, unknown>
 }
 export interface OccurrenceDetail extends Occurrence {
+  payment_active: boolean
   description: string
   frequency: string
   receipts: Receipt[]

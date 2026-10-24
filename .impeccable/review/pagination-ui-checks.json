@@ -1,0 +1,23 @@
+{
+  "passed": true,
+  "browserErrors": [],
+  "collectionRequests": 56,
+  "checked": [
+    "bounded requests on all collection routes",
+    "page navigation",
+    "server date sort",
+    "filter reset",
+    "page size reset",
+    "stale response isolation",
+    "delete last row recovery",
+    "error retry",
+    "independent bot and channel pages",
+    "complete 205-recipient lookup",
+    "nested invoice pages",
+    "overview and calendar",
+    "horizontal 44px arrows",
+    "consistent channel action columns",
+    "six responsive widths",
+    "both themes"
+  ]
+}

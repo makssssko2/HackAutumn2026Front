@@ -28,6 +28,8 @@ Payments can be recurring or one-time. One-time invoices create one period and s
 
 ## Capabilities and Constraints
 
+All growing record tables/lists use server-side pagination with truthful filtered totals, global filtering/sorting, selectable page sizes, stale-request protection and recovery when deleting a last-page record. This includes overview, invoices, recurrences, users, groups, channels, bot connections, both journals, selected calendar-day invoices and related invoice records. Full recipient choices are gathered through bounded lookup requests. Calendar cells use complete server aggregates; the annual budget remains a fixed twelve-month report. Pagination arrows stay horizontal and channel status/action columns align across row types, with responsive stacking in both themes.
+
 Public invoice view uses `/invoice/:token` without login and a separate read-only capability. Show one occurrence's full description, amount/currency, type, deadline, status, actual date and delay. Manual/focus refresh keeps data current with accessible feedback; no payment or administrative controls appear. Telegram/email/webhook add this view link while preserving existing message content and payment actions. Public documents, payer identifiers and history are outside this scope.
 
 Telegram setup uses a «Выбрать группу в Telegram» button and a one-time startgroup link; typing a command is not required. The bot validates group administrator rights and consumes the code atomically. SMTP setup distinguishes the sender mailbox configured on the server from recipient addresses configured as channels.

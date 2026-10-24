@@ -16,8 +16,8 @@ import {
   type IntegrationConnection,
 } from '@/entities/channel'
 import { api, jsonBody } from '@/shared/api'
-import { dateLabel, useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState } from '@/shared/ui'
+import { dateLabel, useAsyncData, usePagedList } from '@/shared/lib'
+import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
 import ConnectionForm from './ConnectionForm.vue'
 import ChannelForm from './ChannelForm.vue'
 import IntegrationHelp from './IntegrationHelp.vue'
@@ -25,11 +25,14 @@ import LegacyChannelHelp from './LegacyChannelHelp.vue'
 
 const session = useSession()
 const {
-  data: channels,
+  rows: channels,
+  total,
+  page,
+  pageSize,
   loading,
   error,
   reload,
-} = useAsyncData(() => api<Channel[]>('/channels'), [])
+} = usePagedList<Channel>('/channels')
 const integrations = useAsyncData(
   async () => {
     const [providers, connections] = await Promise.all([
@@ -46,6 +49,9 @@ const integrations = useAsyncData(
 const connectionList = computed(() =>
   integrations.error.value ? undefined : integrations.data.value.connections,
 )
+const bots = usePagedList<IntegrationConnection>('/integrations/connections', () => ({}), {
+  enabled: () => !integrations.loading.value && !integrations.error.value,
+})
 const busy = ref(''),
   operationError = ref(''),
   message = ref('')
@@ -83,6 +89,7 @@ async function closeForm() {
 function savedConnection(connection: IntegrationConnection) {
   const existing = integrations.data.value.connections.filter((c) => c.id !== connection.id)
   integrations.data.value = { ...integrations.data.value, connections: [...existing, connection] }
+  void bots.reload()
 }
 async function savedChannel() {
   message.value = 'Канал сохранён. Отправьте тест и проверьте результат в журнале рассылок.'
@@ -206,16 +213,15 @@ function connectionFor(channel: Channel) {
     <p v-if="integrations.loading.value" class="muted" role="status">
       Загружаем подключения ботов…
     </p>
-    <div v-else-if="integrations.error.value" class="error-box" role="alert">
+    <div v-else-if="integrations.error.value || bots.error.value" class="error-box" role="alert">
       Не удалось загрузить подключения ботов. Остальные каналы доступны.
       <button class="text-button" @click="integrations.reload">Повторить</button>
     </div>
-    <div v-else-if="integrations.data.value.connections.length" class="panel bot-list">
-      <article
-        v-for="connection in integrations.data.value.connections"
-        :key="connection.id"
-        class="bot-row"
-      >
+    <p v-else-if="bots.loading.value" class="muted" role="status">
+      Загружаем страницу подключений…
+    </p>
+    <div v-else-if="bots.rows.value.length" class="panel bot-list">
+      <article v-for="connection in bots.rows.value" :key="connection.id" class="bot-row">
         <AppIcon :name="connection.provider" :size="24" />
         <div class="bot-description">
           <h3>{{ connection.name }}</h3>
@@ -306,6 +312,14 @@ function connectionFor(channel: Channel) {
       Ботов пока нет. Подключите VK Teams, Mattermost или Битрикс24, чтобы команда подтверждала
       оплату прямо в чате.
     </p>
+    <Pagination
+      v-if="!integrations.error.value && !bots.error.value"
+      v-model:page="bots.page.value"
+      v-model:page-size="bots.pageSize.value"
+      :total="bots.total.value"
+      :loading="bots.loading.value"
+      label="Страницы подключений ботов"
+    />
     <ConnectionForm
       v-if="connectionForm"
       :key="editedConnection?.id || 'new'"
@@ -440,6 +454,13 @@ function connectionFor(channel: Channel) {
         </article>
       </section>
       <p v-else class="integration-empty">Добавьте первый канал, чтобы отправлять счета команде.</p>
+      <Pagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :loading="loading"
+        label="Страницы каналов-получателей"
+      />
     </AsyncState>
   </section>
   <section class="connection-guides" aria-labelledby="connection-guides-title">
@@ -516,13 +537,24 @@ function connectionFor(channel: Channel) {
   overflow-wrap: anywhere;
 }
 .channel-row {
-  flex-wrap: wrap;
+  display: grid;
+  grid-template-columns: 44px minmax(0, 1fr) 156px;
+  align-items: start;
+  gap: 14px 18px;
 }
 .channel-actions {
+  display: flex;
+  grid-column: 2 / -1;
+  justify-self: start;
+  justify-content: flex-start;
+  width: 100%;
+  max-width: none;
+  margin: 0;
+  gap: 8px 16px;
   flex-wrap: wrap;
 }
 .test-confirmation {
-  flex-basis: 100%;
+  grid-column: 2 / -1;
   padding: 16px 0 0;
   border-top: 1px solid var(--line);
 }
@@ -564,6 +596,12 @@ function connectionFor(channel: Channel) {
   margin-top: 22px;
 }
 @media (max-width: 640px) {
+  .channel-row {
+    grid-template-columns: 44px minmax(0, 1fr);
+  }
+  .channel-row > .channel-state {
+    grid-column: 2;
+  }
   .bot-row {
     padding: 18px;
     grid-template-columns: 24px minmax(0, 1fr);
@@ -582,6 +620,15 @@ function connectionFor(channel: Channel) {
   }
   .channel-actions {
     width: 100%;
+  }
+}
+@media (min-width: 1300px) {
+  .channel-row {
+    grid-template-columns: 44px minmax(180px, 1fr) 156px minmax(340px, 400px);
+    align-items: center;
+  }
+  .channel-actions {
+    grid-column: auto;
   }
 }
 </style>

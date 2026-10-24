@@ -9,11 +9,22 @@ import {
   reminderWindow,
   type Occurrence,
   type OccurrenceDetail,
+  type Receipt,
+  type Attachment,
+  type HistoryItem,
 } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import { api, ApiError, jsonBody } from '@/shared/api'
-import { dateISO, dateLabel, money, frequencyLabel, actionLabel, useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState } from '@/shared/ui'
+import {
+  dateISO,
+  dateLabel,
+  money,
+  frequencyLabel,
+  actionLabel,
+  useAsyncData,
+  usePagedList,
+} from '@/shared/lib'
+import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
 const route = useRoute()
 const session = useSession()
 const busy = ref(false),
@@ -28,24 +39,43 @@ const actionHeading = ref<HTMLElement | null>(null)
 const feedback = ref<HTMLElement | null>(null)
 const showIssued = ref(!!route.query.issued)
 const today = computed(() => session.settings?.today || dateISO())
-const { data, loading, error, reload } = useAsyncData(
+const {
+  data,
+  loading,
+  error,
+  reload: reloadDetail,
+} = useAsyncData(
   async () => {
     const detail = await paymentApi.detail(String(route.params.id))
-    const [periods, recurring] =
-      detail.payment_type === 'one_time'
-        ? [[], []]
-        : await Promise.all([
-            paymentApi.list({ recurring_id: detail.recurring_id }),
-            paymentApi.recurring(),
-          ])
-    const active =
-      detail.payment_type === 'one_time'
-        ? !detail.cancelled
-        : !!recurring.find((p) => p.id === detail.recurring_id)?.active
-    return { detail, periods, active }
+    return { detail, active: detail.payment_active }
   },
-  { detail: null as OccurrenceDetail | null, periods: [] as Occurrence[], active: false },
+  { detail: null as OccurrenceDetail | null, active: false },
 )
+const relatedEnabled = () => data.value.detail?.id === route.params.id
+const history = usePagedList<HistoryItem>(
+  () => `/payment-occurrences/${route.params.id}/history`,
+  () => ({}),
+  { enabled: relatedEnabled, pageSize: 6 },
+)
+const documents = usePagedList<Attachment>(
+  () => `/payment-occurrences/${route.params.id}/attachments`,
+  () => ({}),
+  { enabled: relatedEnabled },
+)
+const receipts = usePagedList<Receipt>(
+  () => `/payment-occurrences/${route.params.id}/receipts`,
+  () => ({}),
+  { enabled: relatedEnabled, pageSize: 6 },
+)
+const periods = usePagedList<Occurrence>(
+  '/payment-occurrences',
+  () => ({ recurring_id: data.value.detail?.recurring_id, exclude_id: String(route.params.id) }),
+  { enabled: () => relatedEnabled() && data.value.detail?.payment_type !== 'one_time' },
+)
+async function reload() {
+  await reloadDetail()
+  await Promise.all([history.reload(), documents.reload(), receipts.reload(), periods.reload()])
+}
 const canRemind = computed(
   () => data.value.detail && data.value.active && reminderWindow(data.value.detail, today.value),
 )
@@ -359,45 +389,72 @@ async function addLink() {
               </button>
             </div>
           </section>
-          <div v-if="data.detail.receipts.length" class="receipts-section">
+          <div
+            v-if="receipts.total.value || receipts.loading.value || receipts.error.value"
+            class="receipts-section"
+          >
             <h3>Демонстрационные чеки</h3>
-            <a
-              v-for="receipt in data.detail.receipts"
-              :key="receipt.id"
-              :href="`/api/v1/receipts/${receipt.id}`"
-              class="attachment-row"
-              ><AppIcon name="receipt" :size="22" />
-              <div>
-                <strong>{{ receipt.number }}</strong
-                ><small
-                  >{{ dateLabel(receipt.paid_at) }} ·
-                  {{ receipt.voided ? 'Аннулирован' : 'Действующий' }}</small
-                >
-              </div>
-              <AppIcon name="download" :size="18"
-            /></a>
+            <AsyncState
+              :loading="receipts.loading.value"
+              :error="receipts.error.value"
+              @retry="receipts.reload"
+            >
+              <a
+                v-for="receipt in receipts.rows.value"
+                :key="receipt.id"
+                :href="`/api/v1/receipts/${receipt.id}`"
+                class="attachment-row"
+                ><AppIcon name="receipt" :size="22" />
+                <div>
+                  <strong>{{ receipt.number }}</strong
+                  ><small
+                    >{{ dateLabel(receipt.paid_at) }} ·
+                    {{ receipt.voided ? 'Аннулирован' : 'Действующий' }}</small
+                  >
+                </div>
+                <AppIcon name="download" :size="18"
+              /></a>
+              <Pagination
+                v-model:page="receipts.page.value"
+                v-model:page-size="receipts.pageSize.value"
+                :total="receipts.total.value"
+                :loading="receipts.loading.value"
+                label="Страницы чеков счета"
+            /></AsyncState>
           </div>
         </section>
         <aside class="panel detail-history">
           <h2>История счета</h2>
-          <div v-if="!data.detail.history.length" class="muted">
-            Изменений пока нет. Здесь появятся подтверждения и исправления.
-          </div>
-          <div v-for="item in data.detail.history" :key="item.id" class="history-item">
-            <span class="history-point" />
-            <div>
-              <strong>{{ actionLabel[item.action] || item.action }}</strong>
-              <p>{{ item.actor }}</p>
-              <small>{{
-                dateLabel(item.created_at, {
-                  day: 'numeric',
-                  month: 'short',
-                  hour: '2-digit',
-                  minute: '2-digit',
-                })
-              }}</small>
+          <AsyncState
+            :loading="history.loading.value"
+            :error="history.error.value"
+            @retry="history.reload"
+          >
+            <div v-if="!history.total.value" class="muted">
+              Изменений пока нет. Здесь появятся подтверждения и исправления.
             </div>
-          </div>
+            <div v-for="item in history.rows.value" :key="item.id" class="history-item">
+              <span class="history-point" />
+              <div>
+                <strong>{{ actionLabel[item.action] || item.action }}</strong>
+                <p>{{ item.actor }}</p>
+                <small>{{
+                  dateLabel(item.created_at, {
+                    day: 'numeric',
+                    month: 'short',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                  })
+                }}</small>
+              </div>
+            </div>
+            <Pagination
+              v-model:page="history.page.value"
+              v-model:page-size="history.pageSize.value"
+              :total="history.total.value"
+              :loading="history.loading.value"
+              label="Страницы истории счета"
+          /></AsyncState>
         </aside>
       </div>
       <section class="panel attachment-panel">
@@ -415,20 +472,32 @@ async function addLink() {
           /></label>
         </div>
         <p class="field-help">PDF, PNG, JPG или TXT, до 10 МБ.</p>
-        <a
-          v-for="attachment in data.detail.attachments"
-          :key="attachment.id"
-          :href="attachment.url || `/api/v1/attachments/${attachment.id}/download`"
-          :target="attachment.url ? '_blank' : undefined"
-          rel="noopener noreferrer"
-          class="attachment-row"
-          ><AppIcon :name="attachment.url ? 'link' : 'audit'" :size="22" />
-          <div>
-            <strong>{{ attachment.name }}</strong
-            ><small>{{ dateLabel(attachment.created_at) }}</small>
-          </div>
-          <AppIcon :name="attachment.url ? 'external' : 'download'" :size="18"
-        /></a>
+        <AsyncState
+          :loading="documents.loading.value"
+          :error="documents.error.value"
+          @retry="documents.reload"
+        >
+          <a
+            v-for="attachment in documents.rows.value"
+            :key="attachment.id"
+            :href="attachment.url || `/api/v1/attachments/${attachment.id}/download`"
+            :target="attachment.url ? '_blank' : undefined"
+            rel="noopener noreferrer"
+            class="attachment-row"
+            ><AppIcon :name="attachment.url ? 'link' : 'audit'" :size="22" />
+            <div>
+              <strong>{{ attachment.name }}</strong
+              ><small>{{ dateLabel(attachment.created_at) }}</small>
+            </div>
+            <AppIcon :name="attachment.url ? 'external' : 'download'" :size="18"
+          /></a>
+          <Pagination
+            v-model:page="documents.page.value"
+            v-model:page-size="documents.pageSize.value"
+            :total="documents.total.value"
+            :loading="documents.loading.value"
+            label="Страницы документов счета"
+        /></AsyncState>
         <form class="link-form" @submit.prevent="addLink">
           <label
             >Название ссылки<input
@@ -447,9 +516,16 @@ async function addLink() {
             <p>Отдельный статус и история для каждого счета.</p>
           </div>
         </div>
-        <PaymentTable
-          :payments="data.periods.filter((p) => p.id !== data.detail!.id).slice(0, 12)"
-          compact
-        /></section></template
+        <AsyncState
+          :loading="periods.loading.value"
+          :error="periods.error.value"
+          @retry="periods.reload"
+          ><PaymentTable :payments="periods.rows.value" compact /><Pagination
+            v-model:page="periods.page.value"
+            v-model:page-size="periods.pageSize.value"
+            :total="periods.total.value"
+            :loading="periods.loading.value"
+            label="Страницы других периодов"
+        /></AsyncState></section></template
   ></AsyncState>
 </template>

@@ -13,6 +13,7 @@ const props = withDefaults(
     compact?: boolean
     filtered?: boolean
     sortable?: boolean
+    serverSorted?: boolean
   }>(),
   {
     filtered: false,
@@ -23,7 +24,9 @@ const sort = defineModel<PaymentDateSort>('sort', {
   default: () => ({ field: 'due_date', direction: 'asc' }),
 })
 const sortedPayments = computed(() =>
-  props.sortable ? sortPaymentsByDate(props.payments, sort.value) : props.payments,
+  props.sortable && !props.serverSorted
+    ? sortPaymentsByDate(props.payments, sort.value)
+    : props.payments,
 )
 const mobileSort = computed({
   get: () => `${sort.value.field}:${sort.value.direction}`,

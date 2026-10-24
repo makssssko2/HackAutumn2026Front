@@ -1,12 +1,20 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { paymentApi } from '@/entities/payment'
+import { paymentApi, type Recurring } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { money, dateLabel, frequencyLabel, useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
+import { money, dateLabel, frequencyLabel, usePagedList } from '@/shared/lib'
+import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 const session = useSession()
-const { data, loading, error, reload } = useAsyncData(paymentApi.recurring, [])
+const {
+  rows: data,
+  total,
+  page,
+  pageSize,
+  loading,
+  error,
+  reload,
+} = usePagedList<Recurring>('/recurring-payments')
 const operationError = ref(''),
   busy = ref('')
 async function stop(id: string, title: string) {
@@ -131,6 +139,11 @@ async function stop(id: string, title: string) {
       ><RouterLink v-if="session.isAdmin" to="/payments/new" class="button"
         >Выставить счет</RouterLink
       ></EmptyState
-    ></AsyncState
-  >
+    ><Pagination
+      v-model:page="page"
+      v-model:page-size="pageSize"
+      :total="total"
+      :loading="loading"
+      label="Страницы регулярных платежей"
+  /></AsyncState>
 </template>

@@ -1,14 +1,14 @@
-import { api, jsonBody, queryString } from '@/shared/api'
+import { api, jsonBody, queryString, allPages } from '@/shared/api'
 import type { Occurrence, OccurrenceDetail, Recurring, Summary } from '../model/types'
 export const paymentApi = {
   list: (filters: Record<string, string | number | undefined> = {}) =>
-    api<Occurrence[]>(`/payment-occurrences${queryString(filters)}`),
-  detail: (id: string) => api<OccurrenceDetail>(`/payment-occurrences/${id}`),
+    allPages<Occurrence>('/payment-occurrences', filters),
+  detail: (id: string) => api<OccurrenceDetail>(`/payment-occurrences/${id}?include_related=false`),
   update: (
     id: string,
     value: { paid?: boolean; paid_at?: string; demo?: boolean; expected_revision: number },
   ) => api<Occurrence>(`/payment-occurrences/${id}`, { method: 'PATCH', body: jsonBody(value) }),
-  recurring: () => api<Recurring[]>('/recurring-payments'),
+  recurring: () => allPages<Recurring>('/recurring-payments'),
   create: (value: unknown) =>
     api<Recurring>('/recurring-payments', { method: 'POST', body: jsonBody(value) }),
   stop: (id: string) => api(`/recurring-payments/${id}`, { method: 'DELETE' }),

@@ -1,10 +1,10 @@
 <script setup lang="ts">
-import { computed, onUnmounted, ref, watch } from 'vue'
+import { computed, ref } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { paymentApi, PaymentTable, type Occurrence, type PaymentDateSort } from '@/entities/payment'
+import { PaymentTable, type Occurrence, type PaymentDateSort } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { AppIcon, AsyncState } from '@/shared/ui'
-import { currencies, dateISO, monthRange, useAsyncData } from '@/shared/lib'
+import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
+import { currencies, dateISO, monthRange, usePagedList } from '@/shared/lib'
 const session = useSession()
 const route = useRoute()
 const month = ref((session.settings?.today || dateISO()).slice(0, 7))
@@ -29,29 +29,19 @@ function reset() {
   paymentType.value = ''
   allPeriods.value = true
 }
-const {
-  data: rows,
-  loading,
-  error,
-  reload,
-} = useAsyncData(
-  () =>
-    paymentApi.list({
-      ...(!allPeriods.value && month.value ? monthRange(month.value) : {}),
-      status: status.value,
-      currency: currency.value,
-      payment_type: paymentType.value,
-      q: search.value,
-    }),
-  [],
+const { rows, total, page, pageSize, loading, error, reload } = usePagedList<Occurrence>(
+  '/payment-occurrences',
+  () => ({
+    ...(!allPeriods.value && month.value ? monthRange(month.value) : {}),
+    status: status.value,
+    currency: currency.value,
+    payment_type: paymentType.value,
+    q: search.value,
+    sort: sort.value.field,
+    direction: sort.value.direction,
+  }),
+  { debounce: 250 },
 )
-watch([month, allPeriods, status, currency, paymentType], reload)
-let timer: ReturnType<typeof setTimeout>
-watch(search, () => {
-  clearTimeout(timer)
-  timer = setTimeout(reload, 250)
-})
-onUnmounted(() => clearTimeout(timer))
 </script>
 <template>
   <div class="page-heading">
@@ -101,11 +91,16 @@ onUnmounted(() => clearTimeout(timer))
       ><PaymentTable
         v-model:sort="sort"
         sortable
+        server-sorted
         :payments="rows"
         :filtered="filtered"
-        @reset="reset"
-      />
-      <div class="table-footer">Найдено счетов: {{ rows.length }}</div></AsyncState
-    >
+        @reset="reset" />
+      <Pagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :loading="loading"
+        label="Страницы счетов"
+    /></AsyncState>
   </section>
 </template>

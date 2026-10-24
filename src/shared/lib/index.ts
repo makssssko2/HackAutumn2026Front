@@ -11,4 +11,5 @@ export {
 export type { Currency } from './format'
 export { useAsyncData } from './useAsyncData'
 export { usePagination } from './usePagination'
+export { usePagedList } from './usePagedList'
 export { initializeTheme, useTheme } from './theme'

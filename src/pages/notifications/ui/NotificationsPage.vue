@@ -1,10 +1,10 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { channelLabels } from '@/entities/channel'
+import { channelLabels, type Channel } from '@/entities/channel'
 import { paymentTypeLabel, type Occurrence, type PaymentType } from '@/entities/payment'
-import { api, ApiError } from '@/shared/api'
-import { dateLabel, money, useAsyncData, usePagination } from '@/shared/lib'
+import { api, ApiError, allPages } from '@/shared/api'
+import { dateLabel, money, useAsyncData, usePagedList } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 interface Delivery {
   id: string
@@ -25,32 +25,36 @@ interface Delivery {
   payment: Occurrence
   receipt_id: string | null
 }
-const { data, loading, error, reload } = useAsyncData(() => api<Delivery[]>('/notifications'), [])
 const filter = ref(''),
   search = ref(''),
   channelFilter = ref(''),
   operationError = ref(''),
   busy = ref('')
-const visible = computed(() =>
-  data.value.filter(
-    (delivery) =>
-      (!filter.value || delivery.status === filter.value) &&
-      (!channelFilter.value || delivery.channel_id === channelFilter.value) &&
-      `${delivery.title} ${delivery.payment.description || ''} ${delivery.channel_name}`
-        .toLocaleLowerCase('ru')
-        .includes(search.value.toLocaleLowerCase('ru')),
-  ),
+const {
+  rows: data,
+  data: pageData,
+  total,
+  page,
+  pageSize,
+  loading,
+  error,
+  reload,
+} = usePagedList<Delivery>(
+  '/notifications',
+  () => ({ status: filter.value, channel_id: channelFilter.value, q: search.value }),
+  { debounce: 250 },
 )
-const channelOptions = computed(() => [
-  ...new Map(data.value.map((d) => [d.channel_id, d.channel_name])).entries(),
-])
-const { page, pageRows } = usePagination(visible)
-const failures = computed(
-  () => data.value.filter((d) => ['failed', 'uncertain'].includes(d.status)).length,
+const visible = data,
+  pageRows = data
+const { data: channelOptions } = useAsyncData(
+  () =>
+    allPages<Channel>('/channels').then((rows) =>
+      rows.map<[string, string]>((c) => [c.id, c.name]),
+    ),
+  [] as [string, string][],
 )
-const pending = computed(
-  () => data.value.filter((d) => ['pending', 'sending', 'retry'].includes(d.status)).length,
-)
+const failures = computed(() => pageData.value.stats?.failed || 0)
+const pending = computed(() => pageData.value.stats?.pending || 0)
 function reset() {
   filter.value = ''
   search.value = ''
@@ -112,7 +116,7 @@ async function retry(id: string) {
   <section class="panel">
     <div class="delivery-summary">
       <span
-        >Загружено: <strong>{{ data.length }}</strong></span
+        >Найдено: <strong>{{ total }}</strong></span
       ><span
         >Требуют проверки: <strong>{{ failures }}</strong></span
       ><span
@@ -210,7 +214,13 @@ async function retry(id: string) {
           Сбросить фильтры
         </button></EmptyState
       >
-      <Pagination v-model:page="page" :total="visible.length" />
+      <Pagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :loading="loading"
+        label="Страницы журнала рассылок"
+      />
     </AsyncState>
   </section>
 </template>

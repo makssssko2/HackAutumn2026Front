@@ -3,7 +3,8 @@ import { computed, ref, watch } from 'vue'
 import { RouterLink } from 'vue-router'
 import { paymentApi, PaymentTable, type Occurrence, type Summary } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { AppIcon, AsyncState } from '@/shared/ui'
+import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
+import { readPage } from '@/shared/api'
 import {
   currencies,
   dateISO,
@@ -11,6 +12,7 @@ import {
   money,
   monthRange,
   useAsyncData,
+  usePagedList,
   plural,
 } from '@/shared/lib'
 const session = useSession()
@@ -19,26 +21,42 @@ const month = ref(currentDate.slice(0, 7))
 const tab = ref('all')
 const { data, loading, error, reload } = useAsyncData(
   async () => {
-    const [summary, rows, overdue] = await Promise.all([
+    const range = monthRange(month.value)
+    const [summary, unpaid, paid, overdue, next] = await Promise.all([
       paymentApi.summary(monthRange(month.value)),
-      paymentApi.list(monthRange(month.value)),
-      paymentApi.list({ status: 'overdue' }),
+      readPage<Occurrence>('/payment-occurrences', { ...range, status: 'unpaid', page_size: 1 }),
+      readPage<Occurrence>('/payment-occurrences', { ...range, status: 'paid', page_size: 1 }),
+      readPage<Occurrence>('/payment-occurrences', { status: 'overdue', page_size: 1 }),
+      readPage<Occurrence>('/payment-occurrences', {
+        ...range,
+        date_from: range.date_from! > currentDate ? range.date_from : currentDate,
+        status: 'unpaid',
+        page_size: 1,
+      }),
     ])
-    return { summary, rows, overdue }
+    return {
+      summary,
+      unpaid: unpaid.total,
+      paid: paid.total,
+      overdue: overdue.total,
+      next: next.items[0],
+    }
   },
-  { summary: null as Summary | null, rows: [] as Occurrence[], overdue: [] as Occurrence[] },
+  {
+    summary: null as Summary | null,
+    unpaid: 0,
+    paid: 0,
+    overdue: 0,
+    next: undefined as Occurrence | undefined,
+  },
 )
 watch(month, reload)
-const unpaid = computed(() => data.value.rows.filter((p) => !p.paid && !p.cancelled))
-const paid = computed(() => data.value.rows.filter((p) => p.paid))
-const visible = computed(() =>
-  data.value.rows
-    .filter(
-      (p) => !p.cancelled && (tab.value === 'all' || (tab.value === 'paid' ? p.paid : !p.paid)),
-    )
-    .slice(0, 8),
+const ledger = usePagedList<Occurrence>(
+  '/payment-occurrences',
+  () => ({ ...monthRange(month.value), status: tab.value === 'all' ? 'active' : tab.value }),
+  { pageSize: 8 },
 )
-const next = computed(() => unpaid.value.find((p) => p.due_date >= currentDate))
+const next = computed(() => data.value.next)
 const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long', year: 'numeric' }))
 </script>
 <template>
@@ -69,27 +87,26 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
   </div>
   <AsyncState :loading="loading" :error="error" @retry="reload"
     ><div class="overview-content">
-      <div class="attention-strip" :class="{ calm: !data.overdue.length }">
+      <div class="attention-strip" :class="{ calm: !data.overdue }">
         <span class="attention-icon"
-          ><AppIcon :name="data.overdue.length ? 'clock' : 'checks'" :size="20"
+          ><AppIcon :name="data.overdue ? 'clock' : 'checks'" :size="20"
         /></span>
         <div>
           <strong>{{
-            data.overdue.length
-              ? `${data.overdue.length} ${plural(data.overdue.length, ['счет требует', 'счета требуют', 'счетов требуют'])} внимания`
+            data.overdue
+              ? `${data.overdue} ${plural(data.overdue, ['счет требует', 'счета требуют', 'счетов требуют'])} внимания`
               : 'Просроченных счетов нет'
           }}</strong>
           <p>
             {{
-              data.overdue.length
+              data.overdue
                 ? 'Срок оплаты уже прошел. Проверьте задолженность или уточните дату оплаты.'
                 : 'Все в порядке. Следующие платежи появятся по расписанию.'
             }}
           </p>
         </div>
-        <RouterLink :to="data.overdue.length ? '/payments?status=overdue' : '/calendar'"
-          >{{ data.overdue.length ? 'Проверить счета' : 'В календарь'
-          }}<AppIcon name="arrow" :size="17"
+        <RouterLink :to="data.overdue ? '/payments?status=overdue' : '/calendar'"
+          >{{ data.overdue ? 'Проверить счета' : 'В календарь' }}<AppIcon name="arrow" :size="17"
         /></RouterLink>
       </div>
       <section class="panel payment-panel">
@@ -97,9 +114,9 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
           <div>
             <h2>Счета за {{ monthName }}</h2>
             <p>
-              {{ unpaid.length }}
-              {{ plural(unpaid.length, ['счет ожидает', 'счета ожидают', 'счетов ожидают']) }}
-              оплаты · оплачено {{ paid.length }}
+              {{ data.unpaid }}
+              {{ plural(data.unpaid, ['счет ожидает', 'счета ожидают', 'счетов ожидают']) }}
+              оплаты · оплачено {{ data.paid }}
             </p>
           </div>
           <RouterLink to="/payments" class="text-link"
@@ -121,7 +138,21 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
             {{ label }}
           </button>
         </div>
-        <PaymentTable :payments="visible" compact :filtered="tab !== 'all'" @reset="tab = 'all'" />
+        <AsyncState
+          :loading="ledger.loading.value"
+          :error="ledger.error.value"
+          @retry="ledger.reload"
+          ><PaymentTable
+            :payments="ledger.rows.value"
+            compact
+            :filtered="tab !== 'all'"
+            @reset="tab = 'all'" /><Pagination
+            v-model:page="ledger.page.value"
+            v-model:page-size="ledger.pageSize.value"
+            :total="ledger.total.value"
+            :loading="ledger.loading.value"
+            label="Страницы счетов обзора"
+        /></AsyncState>
       </section>
       <section class="overview-summary">
         <div class="section-heading">

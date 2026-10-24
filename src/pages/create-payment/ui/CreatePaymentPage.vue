@@ -11,7 +11,7 @@ import {
   type Channel,
   type AudienceGroup,
 } from '@/entities/channel'
-import { api } from '@/shared/api'
+import { allPages } from '@/shared/api'
 import { currencies, dateISO, money, frequencyLabel, useAsyncData } from '@/shared/lib'
 import { AppIcon } from '@/shared/ui'
 const router = useRouter()
@@ -44,8 +44,8 @@ const {
 } = useAsyncData(
   async () => {
     const [groups, channels, connections] = await Promise.all([
-      api<AudienceGroup[]>('/groups'),
-      api<Channel[]>('/channels'),
+      allPages<AudienceGroup>('/groups'),
+      allPages<Channel>('/channels'),
       integrationApi.connections().catch(() => undefined),
     ])
     return { groups, channels: channels.filter((channel) => channel.active), connections }

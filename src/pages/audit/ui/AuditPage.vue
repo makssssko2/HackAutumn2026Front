@@ -1,19 +1,32 @@
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { ref } from 'vue'
 import type { HistoryItem } from '@/entities/payment'
-import { api } from '@/shared/api'
-import { actionLabel, dateLabel, useAsyncData, usePagination } from '@/shared/lib'
+import { actionLabel, dateLabel, usePagedList } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
-const { data, loading, error, reload } = useAsyncData(() => api<HistoryItem[]>('/audit'), [])
 const search = ref('')
-const visible = computed(() =>
-  data.value.filter((item) =>
-    `${item.actor} ${actionLabel[item.action] || item.action} ${JSON.stringify(item.details)}`
-      .toLowerCase()
-      .includes(search.value.toLowerCase()),
-  ),
+const {
+  rows: pageRows,
+  total,
+  page,
+  pageSize,
+  loading,
+  error,
+  reload,
+} = usePagedList<HistoryItem>(
+  '/audit',
+  () => ({
+    q: search.value,
+    actions: search.value
+      ? Object.entries(actionLabel)
+          .filter(([, label]) =>
+            label.toLocaleLowerCase('ru').includes(search.value.toLocaleLowerCase('ru')),
+          )
+          .map(([action]) => action)
+          .join(',')
+      : '',
+  }),
+  { debounce: 250 },
 )
-const { page, pageRows } = usePagination(visible)
 function details(item: HistoryItem) {
   return Object.entries(item.details)
     .map(
@@ -40,10 +53,10 @@ function details(item: HistoryItem) {
           v-model="search"
           aria-label="Поиск в журнале"
           placeholder="Действие, пользователь или платеж" /></label
-      ><span class="muted">Последние 500 событий</span>
+      ><span class="muted">Поиск по всей истории</span>
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
-      ><template v-if="visible.length">
+      ><template v-if="pageRows.length">
         <ul class="mobile-record-list">
           <li v-for="item in pageRows" :key="item.id">
             <strong>{{ actionLabel[item.action] || item.action }}</strong>
@@ -102,7 +115,13 @@ function details(item: HistoryItem) {
           Сбросить поиск
         </button></EmptyState
       >
-      <Pagination v-model:page="page" :total="visible.length" />
+      <Pagination
+        v-model:page="page"
+        v-model:page-size="pageSize"
+        :total="total"
+        :loading="loading"
+        label="Страницы журнала действий"
+      />
     </AsyncState>
   </section>
 </template>
