@@ -18,7 +18,7 @@ const showForm = ref(false),
   operationError = ref(''),
   message = ref('')
 const form = reactive({ name: '', kind: 'telegram', email: '', url: '', secret: '' })
-const linkCommand = ref<{ channel: string; command: string } | null>(null)
+const telegramLink = ref<{ channel: string; url: string } | null>(null)
 const kindLabel: Record<string, string> = {
   telegram: 'Telegram',
   email: 'Email',
@@ -62,11 +62,11 @@ async function submit() {
 }
 async function connect(channel: Channel) {
   await operate(async () => {
-    const result = await api<{ command: string }>(`/channels/${channel.id}/telegram-link`, {
+    const result = await api<{ url: string }>(`/channels/${channel.id}/telegram-link`, {
       method: 'POST',
     })
-    linkCommand.value = { channel: channel.name, command: result.command }
-  }, 'Код подключения действует 10 минут')
+    telegramLink.value = { channel: channel.name, url: result.url }
+  }, 'Откройте Telegram и выберите группу. Ссылка действует 10 минут')
 }
 async function toggle(channel: Channel) {
   await operate(
@@ -115,9 +115,9 @@ async function toggle(channel: Channel) {
       </li>
       <li>Здесь нажмите «Добавить канал», выберите Telegram и задайте название группы.</li>
       <li>
-        Добавьте бота в группу с разрешением отправлять сообщения и файлы. Нажмите «Подключить чат»
-        и выполните выданную команду от имени администратора группы. Код действует 10 минут. Чтобы
-        команда точно дошла нужному боту, используйте <code>/connect@имя_бота КОД</code>.
+        Нажмите «Подключить чат» → «Выбрать группу в Telegram». Выберите группу, где вы
+        администратор, и подтвердите добавление бота. Код передается автоматически, вводить команды
+        не нужно. Боту должна быть разрешена отправка сообщений и файлов.
       </li>
       <li>
         Нажмите «Обновить», затем «Тест». После привязки выставляйте новые счета — бот отправит их в
@@ -126,6 +126,41 @@ async function toggle(channel: Channel) {
     </ol>
     <p class="field-help">
       Участники нажимают «Оплатить» прямо в сообщении. Вход в веб-панель им не нужен.
+    </p>
+  </details>
+  <details class="panel telegram-setup-guide">
+    <summary>Как настроить отправку писем</summary>
+    <p>
+      Приложение на VPS отправляет письма через почтовый ящик. Отдельный почтовый сервер на VPS не
+      нужен.
+    </p>
+    <ol>
+      <li>
+        Заведите ящик для уведомлений, например в Яндекс.Почте. В настройках разрешите доступ
+        почтовым программам и создайте пароль приложения для Почты.
+      </li>
+      <li>
+        В Back/.env укажите параметры отправителя. Пример для Яндекс.Почты — замените имя ящика и
+        пароль на свои:
+        <pre><code>SMTP_HOST=smtp.yandex.ru
+SMTP_PORT=465
+SMTP_SSL=true
+SMTP_STARTTLS=false
+SMTP_USERNAME=имя_ящика
+SMTP_PASSWORD=пароль_приложения
+SMTP_FROM=имя_ящика@yandex.ru</code></pre>
+      </li>
+      <li>
+        Из папки Back выполните <code>docker compose up -d --force-recreate api worker</code>.
+      </li>
+      <li>
+        Нажмите «Добавить канал» → «Email через SMTP», укажите адрес получателя и сохраните. Затем
+        нажмите «Тест» и проверьте журнал рассылок.
+      </li>
+    </ol>
+    <p class="field-help">
+      Пароль хранится только в Back/.env. Для другого почтового сервиса используйте его настройки
+      SMTP. Поддерживаются SSL на порту 465 и STARTTLS на порту 587.
     </p>
   </details>
   <div v-if="message" class="success-box" role="status">{{ message }}</div>
@@ -174,28 +209,36 @@ async function toggle(channel: Channel) {
       ></template>
     </div>
     <p v-if="form.kind === 'telegram'" class="field-help">
-      После создания получите код и выполните команду /connect в группе, где вы администратор.
+      После создания нажмите «Подключить чат» и выберите группу в Telegram. Вводить команды не
+      нужно.
     </p>
     <div class="form-actions">
       <button class="button" :disabled="busy">{{ busy ? 'Создаем…' : 'Добавить канал' }}</button>
     </div>
   </form>
-  <section v-if="linkCommand" class="panel telegram-link-panel">
+  <section v-if="telegramLink" class="panel telegram-link-panel">
     <div class="section-heading">
-      <h2>Подключить «{{ linkCommand.channel }}»</h2>
-      <button class="icon-button" aria-label="Скрыть код подключения" @click="linkCommand = null">
+      <h2>Подключить «{{ telegramLink.channel }}»</h2>
+      <button
+        class="icon-button"
+        aria-label="Скрыть подключение Telegram"
+        @click="telegramLink = null"
+      >
         <AppIcon name="close" />
       </button>
     </div>
     <p>
-      Добавьте бота в группу. Выполните команду от имени администратора чата в течение 10 минут:
+      Откройте Telegram, выберите группу, где вы администратор, и подтвердите добавление бота.
+      Привязка произойдет автоматически.
     </p>
-    <code class="connection-code">{{ linkCommand.command }}</code>
+    <a :href="telegramLink.url" class="button" target="_blank" rel="noopener noreferrer"
+      ><AppIcon name="telegram" :size="18" />Выбрать группу в Telegram</a
+    >
     <p class="field-help">
-      Код одноразовый. Если в группе включен режим приватности бота, используйте /connect@имя_бота
-      КОД. После привязки нажмите «Обновить».
+      Ссылка одноразовая, действует 10 минут. После подтверждения в Telegram проверьте привязку
+      здесь.
     </p>
-    <button class="button secondary" @click="reload">Обновить</button>
+    <button class="button secondary" @click="reload">Проверить привязку</button>
   </section>
   <AsyncState :loading="loading" :error="error" @retry="reload"
     ><section class="panel channel-list">

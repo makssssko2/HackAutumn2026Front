@@ -24,6 +24,8 @@ Latest user correction overrides the earlier interpretation of the case: there i
 
 ## Capabilities and Constraints
 
+Telegram setup uses a «Выбрать группу в Telegram» button and a one-time startgroup link; typing a command is not required. The bot validates group administrator rights and consumes the code atomically. SMTP setup distinguishes the sender mailbox configured on the server from recipient addresses configured as channels.
+
 RUB/USD/EUR are accounted for separately. Payments and generated receipts are demonstrations; no acquiring. Monthly recurrence is required. Include calendar, monthly/yearly planned budget, SMTP, outgoing webhooks, in-app notifications, Telegram actions, attachments and audit log. Default broadcast to all configured recipients, optional administrator-defined audience groups. Two independent local Git repositories; no push or publication.
 
 ## Brand Commitments

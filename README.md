@@ -45,7 +45,7 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
 
-The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal or web payment. Recipients pay in Telegram and receive a receipt there. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes the token, Docker startup and chat-link instructions.
+The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal or web payment. Recipients pay in Telegram and receive a receipt there. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes sender SMTP setup and a Telegram group-selector button: no manual command is required, and the short-lived binding code is passed by Telegram automatically.
 
 ## Screens
 
