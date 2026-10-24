@@ -70,6 +70,7 @@ const primary = computed(() => [
   ['/calendar', 'calendar', 'Календарь'],
   ['/budget', 'budget', 'Бюджет'],
   ...(session.isAdmin ? [['/notifications', 'notifications', 'Журнал рассылок']] : []),
+  ['/profile', 'profile', 'Мой профиль'],
 ])
 const management = [
   ['/users', 'users', 'Пользователи'],
@@ -222,11 +223,14 @@ onUnmounted(() => {
             class="icon-button"
             aria-label="Журнал рассылок"
             ><AppIcon name="notifications" /></RouterLink
-          ><span class="topbar-separator" /><span class="user-avatar">{{ initials }}</span>
-          <div class="user-info">
-            <strong>{{ session.user.name }}</strong
-            ><small>{{ session.isAdmin ? 'Администратор' : 'Пользователь' }}</small>
-          </div>
+          ><span class="topbar-separator" />
+          <RouterLink to="/profile" class="profile-entry" aria-label="Открыть мой профиль">
+            <span class="user-avatar">{{ initials }}</span>
+            <div class="user-info">
+              <strong :title="session.user.name">{{ session.user.name }}</strong
+              ><small>{{ session.isAdmin ? 'Администратор' : 'Пользователь' }}</small>
+            </div>
+          </RouterLink>
           <button class="icon-button" aria-label="Выйти из системы" @click="logout">
             <AppIcon name="logout" :size="18" />
           </button>

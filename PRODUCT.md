@@ -14,6 +14,8 @@ Confirmed: Vue + Vite + TypeScript, Feature-Sliced Design. Separate Python API r
 
 Both active `admin` and `user` accounts can access the web application. Participants can view invoices, recurring schedules, calendar and budget, manage the selected invoice's payment state/date, receipts and attachments. The administrator additionally creates/cancels payments, manages users, channels and groups, and accesses audit and delivery administration. Telegram and private email links also work without a web account.
 
+Both roles have «Мой профиль»: display name, read-only login and role, own-name editing and password change with current-password verification. Password changes end all sessions and require login again. Notification channels remain administrator-managed; avatars, contact details and individual subscriptions are outside this profile scope.
+
 ## Product Purpose
 
 Prevent forgotten recurring payments while preserving a separate payment history for every period.

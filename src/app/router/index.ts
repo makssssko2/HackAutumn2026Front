@@ -12,6 +12,11 @@ export const router = createRouter({
     },
     { path: '/login', component: () => import('@/pages/login') },
     { path: '/', component: () => import('@/pages/overview'), meta: { title: 'Обзор' } },
+    {
+      path: '/profile',
+      component: () => import('@/pages/profile'),
+      meta: { title: 'Мой профиль' },
+    },
     { path: '/payments', component: () => import('@/pages/payments'), meta: { title: 'Счета' } },
     {
       path: '/payments/new',

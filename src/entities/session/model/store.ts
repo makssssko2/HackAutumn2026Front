@@ -48,5 +48,30 @@ export const useSession = defineStore('session', () => {
     await api('/auth/logout', { method: 'POST' })
     user.value = null
   }
-  return { user, ready, isAdmin, settings, restore, refreshIdentity, login, logout }
+  async function updateProfile(name: string) {
+    user.value = await api<SessionUser>('/auth/me', {
+      method: 'PATCH',
+      body: jsonBody({ name }),
+    })
+  }
+  async function changePassword(currentPassword: string, newPassword: string) {
+    await api('/auth/password', {
+      method: 'POST',
+      body: jsonBody({ current_password: currentPassword, new_password: newPassword }),
+    })
+    user.value = null
+    settings.value = null
+  }
+  return {
+    user,
+    ready,
+    isAdmin,
+    settings,
+    restore,
+    refreshIdentity,
+    login,
+    logout,
+    updateProfile,
+    changePassword,
+  }
 })

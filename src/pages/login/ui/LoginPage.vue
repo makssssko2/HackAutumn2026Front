@@ -1,10 +1,11 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@/entities/session'
 import { AppIcon } from '@/shared/ui'
 const session = useSession()
 const router = useRouter()
+const route = useRoute()
 const login = ref('')
 const password = ref('')
 const busy = ref(false)
@@ -50,6 +51,9 @@ async function submit() {
       <form class="login-form" @submit.prevent="submit">
         <h2>С возвращением</h2>
         <p class="muted">Вход для администратора и участников команды.</p>
+        <p v-if="route.query.password_changed === '1'" class="profile-login-success" role="status">
+          Пароль изменён. Все сеансы завершены — войдите с новым паролем.
+        </p>
         <label
           >Логин<input
             v-model="login"

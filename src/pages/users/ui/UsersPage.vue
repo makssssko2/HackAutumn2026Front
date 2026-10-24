@@ -121,7 +121,7 @@ async function remove(user: SessionUser) {
         <p class="muted">
           {{ user.login }} · {{ user.role === 'admin' ? 'Администратор' : 'Участник' }}
         </p>
-        <p v-if="user.role === 'admin'" class="field-help">Управляется через .env</p>
+        <p v-if="user.role === 'admin'" class="field-help">Имя и пароль — в своём профиле</p>
         <div v-else class="record-actions">
           <button class="button secondary" @click="open(user)">Изменить</button
           ><button
@@ -158,7 +158,7 @@ async function remove(user: SessionUser) {
               }}</span>
             </td>
             <td class="row-action">
-              <span v-if="user.role === 'admin'" class="muted">Управляется через .env</span
+              <span v-if="user.role === 'admin'" class="muted">Имя и пароль — в своём профиле</span
               ><template v-else
                 ><button class="text-button" @click="open(user)">Изменить</button
                 ><button

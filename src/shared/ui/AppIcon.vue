@@ -36,6 +36,8 @@ import {
   SlidersHorizontal,
   Trash2,
   Users,
+  UserRound,
+  KeyRound,
   Wallet,
   X,
 } from '@lucide/vue'
@@ -48,6 +50,8 @@ const icons: Record<string, unknown> = {
   budget: Wallet,
   notifications: Bell,
   users: Users,
+  profile: UserRound,
+  password: KeyRound,
   groups: Folder,
   settings: Settings2,
   audit: FileText,

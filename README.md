@@ -50,6 +50,8 @@ The administrator issues recurring or one-time invoices with the persistent **В
 
 The isolated `/pay/:token` page works without login and cannot access other invoices or admin data. Opening it does not pay; explicit confirmation is required. It displays the description, actual payment date and demo receipt. Identity is refreshed on navigation and focus; direct administrator routes show an access-denied state for participants, while API authorization remains independently enforced by Back. **Подключения** includes sender SMTP setup and a Telegram group-selector button.
 
+**Мой профиль** (`/profile`) is available to both roles through navigation and the identity link in the header. It shows login, role and account status; users can edit their own display name and change their password with current-password verification and repeated new-password entry. Login/role are read-only. A successful password change ends every session and returns to login with a confirmation message. Notification channels remain administrator-managed. Apply Back migration `0006` for administrator profile passwords to survive restarts; a changed `ADMIN_PASSWORD` remains the server recovery mechanism.
+
 ## Screens
 
 Shared overview, invoices with type/status/currency/date filters, invoice detail, recurring schedules, calendar and monthly/yearly currency budget. Administrator-only creation, delivery journal, users, recipient groups, channel connections and audit. Descriptions appear in invoice lists/details, delivery entries and the public email invoice; empty descriptions do not create an empty block.
