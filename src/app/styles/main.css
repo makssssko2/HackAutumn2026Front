@@ -523,6 +523,9 @@ nav > a.active svg {
 .topbar-location strong {
   color: var(--ink);
   white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 .breadcrumb-divider {
   color: #bdb5ac;
@@ -531,6 +534,10 @@ nav > a.active svg {
   display: flex;
   align-items: center;
   gap: 11px;
+  flex-shrink: 0;
+}
+.topbar .icon-button {
+  flex-shrink: 0;
 }
 .timezone {
   font-size: var(--text-caption);
