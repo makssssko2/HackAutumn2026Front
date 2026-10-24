@@ -1,6 +1,7 @@
 name: invoice-keeper-front
 services:
   front:
+    restart: unless-stopped
     build: .
     ports:
       - "127.0.0.1:8080:80"
