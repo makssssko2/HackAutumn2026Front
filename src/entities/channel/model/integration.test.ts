@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 import {
   connectionPayload,
   connectionLabel,
+  connectionReady,
   integrationError,
   type IntegrationConnection,
 } from './integration'
@@ -35,6 +36,51 @@ const channel: Channel = {
 }
 
 describe('connection credentials and routing', () => {
+  it('keeps the Bitrix webhook write-only and validates its portal', () => {
+    const values = {
+      name: 'Портал',
+      base_url: 'https://company.bitrix24.ru',
+      credential: 'https://company.bitrix24.ru/rest/1/secret/',
+    }
+    expect(connectionPayload('bitrix24', values)).toMatchObject({
+      credentials: { webhook_url: values.credential },
+      base_url: values.base_url,
+    })
+    for (const credential of [
+      'https://other.example/rest/1/secret/',
+      'http://company.bitrix24.ru/rest/1/secret/',
+      'https://company.bitrix24.ru/rest/1/secret/?token=x',
+    ])
+      expect(() => connectionPayload('bitrix24', { ...values, credential })).toThrow('Webhook')
+    expect(() => connectionPayload('bitrix24', { ...values, base_url: values.credential })).toThrow(
+      'адрес портала',
+    )
+    expect(() =>
+      connectionPayload('bitrix24', values, { ...connection, provider: 'bitrix24' }),
+    ).toThrow('другого портала')
+  })
+  it('requires Bitrix bot registration after successful API validation', () => {
+    const bot: IntegrationConnection = {
+      ...connection,
+      provider: 'bitrix24',
+      setup_status: 'configured',
+      external_bot_id: null,
+    }
+    const chat: Channel = { ...channel, kind: 'bitrix24', remote_chat_id: 'chat123' }
+    expect(connectionReady(bot)).toBe(false)
+    expect(connectionLabel(bot)).toBe('Требуется регистрация бота')
+    expect(channelWarning(chat, [bot])).toBe('Бот не зарегистрирован')
+    expect(connectionReady({ ...bot, setup_status: 'ready' })).toBe(false)
+    expect(connectionReady({ ...bot, setup_status: 'ready', external_bot_id: '123' })).toBe(true)
+    expect(needsChat(chat)).toBe(false)
+  })
+  it('redacts unknown structured provider errors', () => {
+    expect(
+      integrationError(
+        new ApiError(422, 'https://portal/rest/1/private', 'unexpected_provider_code'),
+      ),
+    ).not.toContain('private')
+  })
   it('maps tokens to the backend provider contract and normalizes URL', () => {
     expect(
       connectionPayload('vk_teams', {

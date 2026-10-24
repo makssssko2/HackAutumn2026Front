@@ -40,6 +40,11 @@ export function channelWarning(channel: Channel, connections?: IntegrationConnec
   if (!connection.has_credentials) return 'Нужен токен бота'
   if (connection.health_status === 'error') return 'Ошибка подключения бота'
   if (connection.health_status !== 'healthy') return 'Бот не проверен'
+  if (
+    connection.provider === 'bitrix24' &&
+    (connection.setup_status !== 'ready' || !connection.external_bot_id)
+  )
+    return 'Бот не зарегистрирован'
   return ''
 }
 /** The backend requires a complete ChannelIn for PATCH. Preserve routing. */

@@ -13,6 +13,7 @@ export {
   integrationLabels,
   connectionPayload,
   connectionLabel,
+  connectionReady,
   integrationError,
 } from './model/integration'
 export type {

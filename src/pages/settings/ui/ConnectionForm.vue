@@ -2,6 +2,7 @@
 import { computed, nextTick, onMounted, onUnmounted, reactive, ref, watch } from 'vue'
 import {
   connectionPayload,
+  connectionReady,
   integrationApi,
   integrationError,
   integrationLabels,
@@ -14,6 +15,7 @@ import IntegrationHelp from './IntegrationHelp.vue'
 
 const props = defineProps<{
   connection?: IntegrationConnection
+  verifyOnly?: boolean
   providers: IntegrationProvider[]
 }>()
 const emit = defineEmits<{
@@ -25,7 +27,7 @@ const provider = ref<IntegrationKind>(
   props.connection?.provider || (props.providers[0]?.provider as IntegrationKind) || 'vk_teams',
 )
 const saved = ref(props.connection)
-const editing = ref(true)
+const editing = ref(!props.verifyOnly)
 const busy = ref(false),
   error = ref('')
 const title = ref<HTMLElement | null>(null)
@@ -37,6 +39,28 @@ const form = reactive({
   credential: '',
 })
 const label = computed(() => integrationLabels[provider.value])
+const ready = computed(() => !!saved.value && connectionReady(saved.value))
+const secretLabel = computed(() =>
+  provider.value === 'bitrix24'
+    ? 'Входящий webhook'
+    : provider.value === 'vk_teams'
+      ? 'Токен бота'
+      : 'Access Token бота',
+)
+const addressLabel = computed(() =>
+  provider.value === 'bitrix24'
+    ? 'Адрес портала Битрикс24'
+    : provider.value === 'vk_teams'
+      ? 'Адрес Bot API'
+      : 'Адрес сервера Mattermost',
+)
+const addressPlaceholder = computed(() =>
+  provider.value === 'bitrix24'
+    ? 'https://company.bitrix24.ru'
+    : provider.value === 'vk_teams'
+      ? 'https://myteam.mail.ru/bot/v1'
+      : 'https://chat.company.ru',
+)
 watch(provider, (value) => {
   form.credential = ''
   form.base_url = value === 'vk_teams' ? 'https://myteam.mail.ru/bot/v1' : ''
@@ -66,12 +90,12 @@ async function save() {
     busy.value = false
   }
 }
-async function validate() {
+async function verify(action: 'validate' | 'setup') {
   if (!saved.value || busy.value) return
   error.value = ''
   busy.value = true
   try {
-    saved.value = await integrationApi.validate(saved.value.id)
+    saved.value = await integrationApi[action](saved.value.id)
     emit('saved', saved.value)
   } catch (e) {
     error.value = integrationError(e)
@@ -114,8 +138,20 @@ function editCredentials() {
     </div>
     <ol class="connection-steps" aria-label="Этапы подключения">
       <li :aria-current="editing ? 'step' : undefined"><span>1</span> Реквизиты</li>
-      <li :aria-current="!editing ? 'step' : undefined"><span>2</span> Проверка бота</li>
-      <li><span>3</span> Чат-получатель</li>
+      <li :aria-current="!editing && saved?.health_status !== 'healthy' ? 'step' : undefined">
+        <span>2</span> Проверка доступа
+      </li>
+      <li
+        v-if="provider === 'bitrix24'"
+        :aria-current="
+          !editing && saved?.health_status === 'healthy' && !ready ? 'step' : undefined
+        "
+      >
+        <span>3</span> Регистрация бота
+      </li>
+      <li :aria-current="!editing && ready ? 'step' : undefined">
+        <span>{{ provider === 'bitrix24' ? 4 : 3 }}</span> Чат-получатель
+      </li>
     </ol>
     <form v-if="editing" @submit.prevent="save">
       <div class="form-grid">
@@ -135,19 +171,17 @@ function editCredentials() {
             :disabled="busy"
         /></label>
         <label
-          >{{ provider === 'vk_teams' ? 'Адрес Bot API' : 'Адрес сервера Mattermost'
+          >{{ addressLabel
           }}<input
             v-model="form.base_url"
             type="url"
             required
             maxlength="500"
-            :placeholder="
-              provider === 'vk_teams' ? 'https://myteam.mail.ru/bot/v1' : 'https://chat.company.ru'
-            "
+            :placeholder="addressPlaceholder"
             :disabled="busy"
         /></label>
         <label
-          >{{ provider === 'vk_teams' ? 'Токен бота' : 'Access Token бота'
+          >{{ secretLabel
           }}<span v-if="saved?.has_credentials" class="optional"> · новый, если нужно заменить</span
           ><input
             v-model="form.credential"
@@ -158,17 +192,23 @@ function editCredentials() {
             :disabled="busy"
             :placeholder="
               saved?.has_credentials
-                ? 'Оставьте пустым, чтобы сохранить токен'
-                : 'Вставьте токен из настроек бота'
+                ? 'Оставьте пустым, чтобы сохранить'
+                : provider === 'bitrix24'
+                  ? 'https://company.bitrix24.ru/rest/1/секрет/'
+                  : 'Вставьте токен из настроек бота'
             "
         /></label>
       </div>
       <p class="field-help">
         {{
           saved?.has_credentials
-            ? 'Токен уже сохранён на сервере. Пустое поле его не изменит.'
-            : 'Токен отправляется только серверу Invoice Keeper и не сохраняется в браузере.'
+            ? 'Реквизиты уже сохранены на сервере. Пустое поле их не изменит.'
+            : 'Секрет отправляется только серверу Invoice Keeper и не сохраняется в браузере.'
         }}
+      </p>
+      <p v-if="provider === 'bitrix24'" class="field-help">
+        Адрес портала не содержит /rest/ и секрета. Полный входящий webhook с правом imbot вставьте
+        в отдельное скрытое поле. После проверки доступа потребуется зарегистрировать бота.
       </p>
       <p v-if="error" class="error-box" role="alert">{{ error }}</p>
       <div class="form-actions">
@@ -185,11 +225,23 @@ function editCredentials() {
         <div>
           <strong>{{ saved.name }}</strong>
           <p>{{ label }} · {{ saved.base_url }}</p>
+          <p v-if="provider === 'bitrix24' && saved.external_bot_id">
+            ID бота: {{ saved.external_bot_id }}
+          </p>
         </div>
       </div>
-      <p v-if="saved.health_status === 'healthy'" class="success-box" role="status">
-        API бота проверен{{ saved.external_bot_id ? ` · ID ${saved.external_bot_id}` : '' }}. Теперь
-        добавьте чат-получатель. Доставка и кнопка проверяются в самом чате.
+      <p v-if="ready" class="success-box" role="status">
+        {{ provider === 'bitrix24' ? 'Бот и команда оплаты зарегистрированы' : 'API бота проверен'
+        }}{{
+          provider !== 'bitrix24' && saved.external_bot_id ? ` · ID ${saved.external_bot_id}` : ''
+        }}. Теперь добавьте чат-получатель. Доставка и кнопка проверяются в самом чате.
+      </p>
+      <p
+        v-else-if="provider === 'bitrix24' && saved.health_status === 'healthy'"
+        class="field-help"
+      >
+        Доступ к API проверен. Нажмите «Зарегистрировать бота»: это создаст бота и команду оплаты на
+        вашем портале. После регистрации добавьте бота в чат.
       </p>
       <p v-else class="field-help">
         Реквизиты сохранены. Проверьте доступ к API бота перед добавлением чата.
@@ -200,9 +252,19 @@ function editCredentials() {
           v-if="saved.health_status !== 'healthy'"
           class="button"
           :disabled="busy || !saved.active"
-          @click="validate"
+          @click="verify('validate')"
         >
-          {{ busy ? 'Проверяем…' : 'Проверить бота' }}
+          {{
+            busy ? 'Проверяем…' : provider === 'bitrix24' ? 'Проверить доступ' : 'Проверить бота'
+          }}
+        </button>
+        <button
+          v-else-if="provider === 'bitrix24' && !ready"
+          class="button"
+          :disabled="busy || !saved.active"
+          @click="verify('setup')"
+        >
+          {{ busy ? 'Регистрируем…' : 'Зарегистрировать бота' }}
         </button>
         <button
           v-else
@@ -212,11 +274,7 @@ function editCredentials() {
         >
           <AppIcon name="plus" :size="18" />Добавить чат
         </button>
-        <button
-          class="button secondary"
-          :disabled="busy"
-          @click="editCredentials"
-        >
+        <button class="button secondary" :disabled="busy" @click="editCredentials">
           Изменить реквизиты
         </button>
       </div>
@@ -284,5 +342,13 @@ function editCredentials() {
 }
 h2:focus {
   outline: none;
+}
+.field-help {
+  max-width: 74ch;
+}
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

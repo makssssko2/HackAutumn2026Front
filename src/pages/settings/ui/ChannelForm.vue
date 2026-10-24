@@ -5,6 +5,7 @@ import {
   channelUpdatePayload,
   isIntegration,
   integrationError,
+  connectionReady,
   type Channel,
   type IntegrationConnection,
   type IntegrationProvider,
@@ -52,11 +53,10 @@ async function save() {
   error.value = ''
   try {
     if (!form.name.trim()) throw new Error('Укажите название канала.')
-    if (
-      isIntegration(form.kind) &&
-      (!selected.value?.active || selected.value.health_status !== 'healthy')
-    )
-      throw new Error('Сначала включите и проверьте выбранного бота.')
+    if (isIntegration(form.kind) && (!selected.value || !connectionReady(selected.value)))
+      throw new Error(
+        'Сначала включите и проверьте выбранного бота. Для Битрикс24 завершите регистрацию.',
+      )
     if (isIntegration(form.kind) && !form.remote_chat_id.trim()) throw new Error('Укажите ID чата.')
     const config: Record<string, string> =
       form.kind === 'email'
@@ -161,19 +161,28 @@ async function save() {
           >Бот / сервер<select v-model="form.connection_id" required :disabled="busy">
             <option value="" disabled>Выберите подключение</option>
             <option v-for="item in available" :key="item.id" :value="item.id">
-              {{ item.name }}{{ item.health_status !== 'healthy' ? ' · не проверен' : '' }}
+              {{ item.name }}{{ !connectionReady(item) ? ' · требует настройки' : '' }}
             </option>
           </select></label
         >
         <label
-          >{{ form.kind === 'vk_teams' ? 'ID чата VK Teams' : 'Channel ID Mattermost'
+          >{{
+            form.kind === 'bitrix24'
+              ? 'Dialog ID Битрикс24'
+              : form.kind === 'vk_teams'
+                ? 'ID чата VK Teams'
+                : 'Channel ID Mattermost'
           }}<input
             v-model="form.remote_chat_id"
             required
             maxlength="200"
             :disabled="busy"
             :placeholder="
-              form.kind === 'vk_teams' ? 'Например, 123456@chat.agent' : 'ID из сведений о канале'
+              form.kind === 'bitrix24'
+                ? 'Например, chat123'
+                : form.kind === 'vk_teams'
+                  ? 'Например, 123456@chat.agent'
+                  : 'ID из сведений о канале'
             "
         /></label>
       </template>
@@ -221,5 +230,10 @@ async function save() {
 }
 h2:focus {
   outline: none;
+}
+@media (max-width: 720px) {
+  .form-grid {
+    grid-template-columns: minmax(0, 1fr);
+  }
 }
 </style>

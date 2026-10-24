@@ -8,6 +8,7 @@ import {
   channelWarning,
   channelUpdatePayload,
   connectionLabel,
+  connectionReady,
   integrationApi,
   integrationError,
   isIntegration,
@@ -49,15 +50,17 @@ const busy = ref(''),
   operationError = ref(''),
   message = ref('')
 const connectionForm = ref(false),
-  editedConnection = ref<IntegrationConnection>()
+  editedConnection = ref<IntegrationConnection>(),
+  verifyOnly = ref(false)
 const channelForm = ref(false),
   editedChannel = ref<Channel>(),
   selectedConnection = ref<IntegrationConnection>()
 const telegramLink = ref<{ channel: string; url: string } | null>(null)
 const testChannel = ref<Channel | null>(null)
 const addChannelButton = ref<HTMLButtonElement | null>(null)
-function openConnection(connection?: IntegrationConnection) {
+function openConnection(connection?: IntegrationConnection, verification = false) {
   editedConnection.value = connection
+  verifyOnly.value = verification
   connectionForm.value = true
   channelForm.value = false
   operationError.value = ''
@@ -114,7 +117,9 @@ async function validate(connection: IntegrationConnection) {
         throw e
       }
     },
-    'API бота проверен. Отправку и работу кнопки проверьте в целевом чате.',
+    connection.provider === 'bitrix24'
+      ? 'Доступ к API проверен. Если бот ещё не зарегистрирован, завершите регистрацию перед добавлением чата.'
+      : 'API бота проверен. Отправку и работу кнопки проверьте в целевом чате.',
   )
 }
 async function toggleConnection(connection: IntegrationConnection) {
@@ -184,7 +189,7 @@ function connectionFor(channel: Channel) {
     <div class="section-heading">
       <div>
         <h2 id="integration-title">Боты и серверы</h2>
-        <p>VK Teams и Mattermost. Одно подключение — несколько чатов-получателей.</p>
+        <p>VK Teams, Mattermost и Битрикс24. Одно подключение — несколько чатов-получателей.</p>
       </div>
       <button
         class="button secondary"
@@ -242,7 +247,7 @@ function connectionFor(channel: Channel) {
           :class="
             !connection.active
               ? 'cancelled'
-              : connection.health_status === 'healthy'
+              : connectionReady(connection)
                 ? 'paid'
                 : connection.health_status === 'error'
                   ? 'overdue'
@@ -256,14 +261,37 @@ function connectionFor(channel: Channel) {
             :disabled="!!busy || !connection.active"
             @click="validate(connection)"
           >
-            {{ busy === connection.id ? 'Подождите…' : 'Проверить бота' }}
+            {{
+              busy === connection.id
+                ? 'Подождите…'
+                : connection.provider === 'bitrix24'
+                  ? 'Проверить доступ'
+                  : 'Проверить бота'
+            }}
           </button>
-          <button class="text-button" :disabled="!!busy" @click="openConnection(connection)">
-            Настроить
+          <button
+            class="text-button"
+            :disabled="!!busy"
+            @click="
+              openConnection(
+                connection,
+                connection.provider === 'bitrix24' &&
+                  connection.health_status === 'healthy' &&
+                  !connectionReady(connection),
+              )
+            "
+          >
+            {{
+              connection.provider === 'bitrix24' &&
+              connection.health_status === 'healthy' &&
+              !connectionReady(connection)
+                ? 'Завершить регистрацию'
+                : 'Настроить'
+            }}
           </button>
           <button
             class="button secondary small"
-            :disabled="!!busy || !connection.active || connection.health_status !== 'healthy'"
+            :disabled="!!busy || !connectionReady(connection)"
             @click="openChannel(connection)"
           >
             Добавить чат
@@ -275,13 +303,14 @@ function connectionFor(channel: Channel) {
       </article>
     </div>
     <p v-else class="integration-empty">
-      Ботов пока нет. Подключите VK Teams или Mattermost, чтобы команда подтверждала оплату прямо в
-      чате.
+      Ботов пока нет. Подключите VK Teams, Mattermost или Битрикс24, чтобы команда подтверждала
+      оплату прямо в чате.
     </p>
     <ConnectionForm
       v-if="connectionForm"
       :key="editedConnection?.id || 'new'"
       :connection="editedConnection"
+      :verify-only="verifyOnly"
       :providers="integrations.data.value.providers"
       @close="closeForm"
       @saved="savedConnection"
@@ -416,13 +445,6 @@ function connectionFor(channel: Channel) {
   <section class="connection-guides" aria-labelledby="connection-guides-title">
     <h2 id="connection-guides-title">Инструкции подключения</h2>
     <IntegrationHelp /><LegacyChannelHelp />
-    <details class="integration-future">
-      <summary>Битрикс24 — следующий этап</summary>
-      <p>
-        Подключение Битрикс24 появится после добавления адаптера на сервере. Сейчас доступны VK
-        Teams и Mattermost; вводить webhook Битрикс24 в форму обычного webhook не нужно.
-      </p>
-    </details>
     <p class="field-help">
       Часовой пояс: {{ session.settings?.timezone }}. Настройки Telegram и отправителя SMTP задаются
       администратором сервера.

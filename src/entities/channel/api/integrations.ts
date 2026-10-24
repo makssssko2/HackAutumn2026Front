@@ -16,5 +16,7 @@ export const integrationApi = {
     }),
   validate: (id: string) =>
     api<IntegrationConnection>(`/integrations/connections/${id}/validate`, { method: 'POST' }),
+  setup: (id: string) =>
+    api<IntegrationConnection>(`/integrations/connections/${id}/setup`, { method: 'POST' }),
   status: (id: string) => api<IntegrationConnection>(`/integrations/connections/${id}/status`),
 }
