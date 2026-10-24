@@ -10,3 +10,4 @@ export {
 } from './format'
 export type { Currency } from './format'
 export { useAsyncData } from './useAsyncData'
+export { usePagination } from './usePagination'

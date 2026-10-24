@@ -3,17 +3,12 @@ import { reactive, ref } from 'vue'
 import { api, jsonBody } from '@/shared/api'
 import { useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
+import { ChannelState, channelLabels, needsChat, type Channel } from '@/entities/channel'
 interface Group {
   id: string
   name: string
   description: string
   channel_ids: string[]
-}
-interface Channel {
-  id: string
-  name: string
-  kind: string
-  active: boolean
 }
 const { data, loading, error, reload } = useAsyncData(
   async () => {
@@ -101,12 +96,14 @@ async function remove(group: Group) {
     </div>
     <fieldset>
       <legend>Подключенные получатели</legend>
-      <label v-for="channel in data.channels" :key="channel.id" class="checkbox-label"
-        ><input v-model="form.channel_ids" type="checkbox" :value="channel.id" />{{ channel.name }}
-        <span class="muted"
-          >{{ channel.kind }}{{ channel.active ? '' : ' · отключен' }}</span
-        ></label
-      >
+      <label
+        v-for="channel in data.channels"
+        :key="channel.id"
+        class="checkbox-label choice-row group-channel-choice"
+        ><input v-model="form.channel_ids" type="checkbox" :value="channel.id" /><span
+          >{{ channel.name }}<small>{{ channelLabels[channel.kind] }}</small></span
+        ><ChannelState :channel="channel"
+      /></label>
     </fieldset>
     <p v-if="operationError" class="error-text" role="alert">{{ operationError }}</p>
     <div class="form-actions">
@@ -127,7 +124,10 @@ async function remove(group: Group) {
             <span
               v-for="channel in data.channels.filter((c) => group.channel_ids.includes(c.id))"
               :key="channel.id"
-              ><AppIcon :name="channel.kind" :size="13" />{{ channel.name }}</span
+              ><AppIcon :name="channel.kind" :size="15" />{{ channel.name
+              }}<small v-if="!channel.active || needsChat(channel)">
+                · {{ !channel.active ? 'отключен' : 'чат не привязан' }}</small
+              ></span
             ><span v-if="!group.channel_ids.length">Получатели не выбраны</span>
           </div>
         </div>

@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed, onMounted, onUnmounted, ref } from 'vue'
+import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
 import { useSession } from '@/entities/session'
 import { AppIcon } from '@/shared/ui'
@@ -10,6 +10,54 @@ const router = useRouter()
 const menuOpen = ref(false)
 const mobileQuery = window.matchMedia('(max-width: 1000px)')
 const mobile = ref(mobileQuery.matches)
+const sidebar = ref<HTMLElement | null>(null)
+const menuToggle = ref<HTMLButtonElement | null>(null)
+let previousOverflow = ''
+watch(menuOpen, async (open) => {
+  if (open && mobile.value) {
+    previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    await nextTick()
+    sidebar.value?.querySelector<HTMLButtonElement>('button')?.focus()
+  } else {
+    document.body.style.overflow = previousOverflow
+    if (mobile.value) {
+      await nextTick()
+      menuToggle.value?.focus()
+    }
+  }
+})
+watch(
+  () => route.fullPath,
+  () => {
+    menuOpen.value = false
+  },
+)
+function menuKeyboard(event: KeyboardEvent) {
+  if (!menuOpen.value || !mobile.value) return
+  if (event.key === 'Escape') {
+    event.preventDefault()
+    menuOpen.value = false
+    return
+  }
+  if (event.key !== 'Tab') return
+  const items = [
+    ...(sidebar.value?.querySelectorAll<HTMLElement>('a[href], button:not(:disabled)') || []),
+  ]
+  const first = items[0],
+    last = items.at(-1)
+  if (!first || !last) return
+  if (
+    !sidebar.value?.contains(document.activeElement) ||
+    (!event.shiftKey && document.activeElement === last)
+  ) {
+    event.preventDefault()
+    first.focus()
+  } else if (event.shiftKey && document.activeElement === first) {
+    event.preventDefault()
+    last.focus()
+  }
+}
 function updateMobile(event: MediaQueryListEvent) {
   mobile.value = event.matches
   if (!event.matches) menuOpen.value = false
@@ -59,11 +107,14 @@ onMounted(() => {
   window.addEventListener('session-expired', expired)
   window.addEventListener('focus', syncSession)
   mobileQuery.addEventListener('change', updateMobile)
+  window.addEventListener('keydown', menuKeyboard)
 })
 onUnmounted(() => {
   window.removeEventListener('session-expired', expired)
   window.removeEventListener('focus', syncSession)
   mobileQuery.removeEventListener('change', updateMobile)
+  window.removeEventListener('keydown', menuKeyboard)
+  if (menuOpen.value) document.body.style.overflow = previousOverflow
 })
 </script>
 <template>
@@ -73,15 +124,27 @@ onUnmounted(() => {
     ><button
       v-if="menuOpen"
       class="nav-scrim"
-      aria-label="Закрыть меню"
+      tabindex="-1"
+      aria-hidden="true"
       @click="menuOpen = false"
     />
     <aside
+      id="workspace-navigation"
+      ref="sidebar"
       class="sidebar"
+      :role="mobile ? 'dialog' : undefined"
+      :aria-modal="mobile && menuOpen ? true : undefined"
+      aria-label="Навигация по приложению"
       :class="{ open: menuOpen }"
       :inert="mobile && !menuOpen"
       @keydown.esc="menuOpen = false"
     >
+      <div v-if="mobile" class="mobile-nav-heading">
+        <strong>Навигация</strong
+        ><button class="icon-button" aria-label="Закрыть меню" @click="menuOpen = false">
+          <AppIcon name="close" />
+        </button>
+      </div>
       <RouterLink to="/" class="brand" @click="menuOpen = false"
         ><span class="brand-mark"><AppIcon name="checks" :size="24" /></span
         ><span
@@ -136,12 +199,14 @@ onUnmounted(() => {
         /></a>
       </div>
     </aside>
-    <div class="main-shell">
+    <div class="main-shell" :inert="mobile && menuOpen">
       <header class="topbar">
         <div class="topbar-location">
           <button
+            ref="menuToggle"
             class="icon-button mobile-menu"
             aria-label="Открыть меню"
+            aria-controls="workspace-navigation"
             :aria-expanded="menuOpen"
             @click="menuOpen = !menuOpen"
           >

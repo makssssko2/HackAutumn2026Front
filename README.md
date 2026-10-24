@@ -41,6 +41,7 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 - `pages`: route-owned screens and their specific forms/data orchestration.
 - `entities/payment`: occurrence/recurrence models, API and reusable payment/status views.
 - `entities/session`: current account, session and account-level settings.
+- `entities/channel`: channel types, independent activation/binding states and recipient selection.
 - `shared`: HTTP transport, generic async helper, display utilities and presentation primitives.
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
@@ -50,6 +51,8 @@ The administrator issues invoices with the persistent **Выставить сч�
 ## Screens
 
 Admin-only overview, filterable invoices, invoice card and independent periods, recurring schedules, calendar with date totals, monthly/yearly currency budget, notification delivery journal, participant record management, recipient groups, channel connections and action audit. The administrator can attach a file/link. All protected routes require administrator authentication, independently enforced by the backend.
+
+Invoice creation explicitly selects all active channels or selected groups, with a deduplicated recipient preview. An enabled Telegram channel may be unbound; activation and chat readiness are displayed separately. The preview describes recipients for a new invoice; delivery results remain authoritative in the journal. Notifications support search, channel/status filters and local pagination; the action journal also paginates loaded records. Mobile invoices, recurrences, users and audit records use readable lists. The mobile navigation traps keyboard focus while open and supports Escape and focus restoration.
 
 ## Design
 

@@ -60,7 +60,7 @@ async function remove(user: SessionUser) {
       <h1>Пользователи</h1>
       <p>
         Учетные записи участников. Веб-панель доступна только администратору; участники оплачивают
-        счета в Telegram.
+        счета из уведомлений в Telegram или email.
       </p>
     </div>
     <button class="button" @click="open()">
@@ -100,7 +100,8 @@ async function remove(user: SessionUser) {
       /></label>
     </div>
     <p class="field-help">
-      Пользователь сможет смотреть платежи, менять статус и фактическую дату оплаты.
+      Запись участника не дает доступа в админку. Участники подтверждают оплату и получают чек из
+      уведомлений.
     </p>
     <p v-if="operationError" class="error-text" role="alert">{{ operationError }}</p>
     <div class="form-actions">
@@ -109,7 +110,31 @@ async function remove(user: SessionUser) {
   </form>
   <p v-if="operationError && !showForm" class="error-box" role="alert">{{ operationError }}</p>
   <AsyncState :loading="loading" :error="error" @retry="reload"
-    ><section class="panel table-scroll">
+    ><ul class="mobile-record-list panel">
+      <li v-for="user in data" :key="user.id">
+        <div class="record-heading">
+          <strong>{{ user.name }}</strong
+          ><span class="status" :class="user.active ? 'paid' : 'cancelled'">{{
+            user.active ? 'Активен' : 'Отключен'
+          }}</span>
+        </div>
+        <p class="muted">
+          {{ user.login }} · {{ user.role === 'admin' ? 'Администратор' : 'Участник' }}
+        </p>
+        <p v-if="user.role === 'admin'" class="field-help">Управляется через .env</p>
+        <div v-else class="record-actions">
+          <button class="button secondary" @click="open(user)">Изменить</button
+          ><button
+            class="icon-button danger-text"
+            :aria-label="`Удалить ${user.name}`"
+            @click="remove(user)"
+          >
+            <AppIcon name="trash" />
+          </button>
+        </div>
+      </li>
+    </ul>
+    <section class="panel table-scroll desktop-record-table">
       <table class="ledger">
         <thead>
           <tr>

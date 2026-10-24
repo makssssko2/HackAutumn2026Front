@@ -1,16 +1,10 @@
 <script setup lang="ts">
 import { reactive, ref } from 'vue'
 import { useSession } from '@/entities/session'
+import { ChannelState, needsChat, type Channel } from '@/entities/channel'
 import { api, jsonBody } from '@/shared/api'
 import { useAsyncData } from '@/shared/lib'
 import { AppIcon, AsyncState } from '@/shared/ui'
-interface Channel {
-  id: string
-  name: string
-  kind: string
-  config: Record<string, string>
-  active: boolean
-}
 const session = useSession()
 const { data, loading, error, reload } = useAsyncData(() => api<Channel[]>('/channels'), [])
 const showForm = ref(false),
@@ -238,6 +232,10 @@ SMTP_FROM=имя_ящика@yandex.ru</code></pre>
       Ссылка одноразовая, действует 10 минут. После подтверждения в Telegram проверьте привязку
       здесь.
     </p>
+    <p class="field-help">
+      После подключения в чат приходят новые счета. Уже выставленные счета автоматически не
+      рассылаются в новый чат.
+    </p>
     <button class="button secondary" @click="reload">Проверить привязку</button>
   </section>
   <AsyncState :loading="loading" :error="error" @retry="reload"
@@ -256,6 +254,9 @@ SMTP_FROM=имя_ящика@yandex.ru</code></pre>
             ><span v-if="channel.kind === 'email'"> · {{ channel.config.email }}</span
             ><span v-if="channel.kind === 'webhook'"> · {{ channel.config.url }}</span>
           </p>
+          <small v-if="needsChat(channel)" class="binding-hint"
+            >Отправка станет доступна после привязки чата. Канал можно оставить включенным.</small
+          >
           <small
             v-if="channel.kind === 'telegram' && !session.settings?.telegram_configured"
             class="warning-text"
@@ -266,9 +267,7 @@ SMTP_FROM=имя_ящика@yandex.ru</code></pre>
             >SMTP пока не настроен</small
           >
         </div>
-        <span class="status" :class="channel.active ? 'paid' : 'cancelled'">{{
-          channel.active ? 'Включен' : 'Отключен'
-        }}</span>
+        <ChannelState :channel="channel" />
         <div class="channel-actions">
           <button
             v-if="channel.kind === 'telegram'"
@@ -279,7 +278,8 @@ SMTP_FROM=имя_ящика@yandex.ru</code></pre>
             {{ channel.config.chat_id ? 'Перепривязать' : 'Подключить чат' }}</button
           ><button
             class="text-button"
-            :disabled="busy || !channel.active"
+            :disabled="busy || !channel.active || needsChat(channel)"
+            :title="needsChat(channel) ? 'Сначала привяжите Telegram-чат' : undefined"
             @click="
               operate(
                 () => api(`/channels/${channel.id}/test`, { method: 'POST' }),

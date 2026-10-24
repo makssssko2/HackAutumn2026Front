@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { ref, watch } from 'vue'
+import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import { paymentApi, PaymentTable, type Occurrence } from '@/entities/payment'
 import { useSession } from '@/entities/session'
@@ -12,6 +12,15 @@ const allPeriods = ref(route.query.status === 'overdue')
 const status = ref(String(route.query.status || ''))
 const currency = ref('')
 const search = ref('')
+const filtered = computed(
+  () => !!(search.value || status.value || currency.value || !allPeriods.value),
+)
+function reset() {
+  search.value = ''
+  status.value = ''
+  currency.value = ''
+  allPeriods.value = true
+}
 const {
   data: rows,
   loading,
@@ -33,6 +42,7 @@ watch(search, () => {
   clearTimeout(timer)
   timer = setTimeout(reload, 250)
 })
+onUnmounted(() => clearTimeout(timer))
 </script>
 <template>
   <div class="page-heading">
@@ -72,7 +82,7 @@ watch(search, () => {
       >
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
-      ><PaymentTable :payments="rows" />
+      ><PaymentTable :payments="rows" :filtered="filtered" @reset="reset" />
       <div class="table-footer">Найдено счетов: {{ rows.length }}</div></AsyncState
     >
   </section>

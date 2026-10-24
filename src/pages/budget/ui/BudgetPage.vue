@@ -68,11 +68,12 @@ function monthName(month: number) {
             <h2>Расходы по месяцам</h2>
             <p>План и оплаченные счета · {{ currency }}</p>
           </div>
-          <div class="segmented">
+          <div class="segmented" role="group" aria-label="Валюта бюджета">
             <button
               v-for="item in currencies"
               :key="item"
               :class="{ selected: currency === item }"
+              :aria-pressed="currency === item"
               @click="currency = item"
             >
               {{ item }}
@@ -105,7 +106,15 @@ function monthName(month: number) {
             <strong>{{ money(item.currencies[currency].planned, currency) }}</strong>
           </div>
         </div>
-        <div class="table-scroll">
+        <p class="scroll-hint">
+          <AppIcon name="arrow" :size="15" />Прокрутите таблицу, чтобы увидеть все суммы.
+        </p>
+        <div
+          class="table-scroll budget-table-scroll"
+          tabindex="0"
+          role="region"
+          aria-label="Бюджет по месяцам"
+        >
           <table class="ledger">
             <caption class="sr-only">
               Суммы по месяцам,

@@ -2,8 +2,8 @@
 import { computed, ref } from 'vue'
 import type { HistoryItem } from '@/entities/payment'
 import { api } from '@/shared/api'
-import { actionLabel, dateLabel, useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
+import { actionLabel, dateLabel, useAsyncData, usePagination } from '@/shared/lib'
+import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 const { data, loading, error, reload } = useAsyncData(() => api<HistoryItem[]>('/audit'), [])
 const search = ref('')
 const visible = computed(() =>
@@ -13,6 +13,7 @@ const visible = computed(() =>
       .includes(search.value.toLowerCase()),
   ),
 )
+const { page, pageRows } = usePagination(visible)
 function details(item: HistoryItem) {
   return Object.entries(item.details)
     .map(
@@ -42,42 +43,66 @@ function details(item: HistoryItem) {
       ><span class="muted">Последние 500 событий</span>
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
-      ><div v-if="visible.length" class="table-scroll">
-        <table class="ledger audit-ledger">
-          <thead>
-            <tr>
-              <th>Время</th>
-              <th>Пользователь</th>
-              <th>Действие</th>
-              <th>Подробности</th>
-            </tr>
-          </thead>
-          <tbody>
-            <tr v-for="item in visible" :key="item.id">
-              <td>
-                {{
-                  dateLabel(item.created_at, {
-                    day: 'numeric',
-                    month: 'short',
-                    hour: '2-digit',
-                    minute: '2-digit',
-                  })
-                }}
-              </td>
-              <td>{{ item.actor }}</td>
-              <td>
-                <strong>{{ actionLabel[item.action] || item.action }}</strong>
-              </td>
-              <td>{{ details(item) || '—' }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
+      ><template v-if="visible.length">
+        <ul class="mobile-record-list">
+          <li v-for="item in pageRows" :key="item.id">
+            <strong>{{ actionLabel[item.action] || item.action }}</strong>
+            <p>{{ item.actor }}</p>
+            <p class="muted">
+              {{
+                dateLabel(item.created_at, {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}
+            </p>
+            <p class="record-details">{{ details(item) || 'Без дополнительных сведений' }}</p>
+          </li>
+        </ul>
+        <div class="table-scroll desktop-record-table">
+          <table class="ledger audit-ledger">
+            <thead>
+              <tr>
+                <th>Время</th>
+                <th>Пользователь</th>
+                <th>Действие</th>
+                <th>Подробности</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr v-for="item in pageRows" :key="item.id">
+                <td>
+                  {{
+                    dateLabel(item.created_at, {
+                      day: 'numeric',
+                      month: 'short',
+                      hour: '2-digit',
+                      minute: '2-digit',
+                    })
+                  }}
+                </td>
+                <td>{{ item.actor }}</td>
+                <td>
+                  <strong>{{ actionLabel[item.action] || item.action }}</strong>
+                </td>
+                <td>{{ details(item) || '—' }}</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </template>
       <EmptyState
         v-else
         title="События не найдены"
-        description="Измените запрос. Новые действия появятся здесь автоматически."
+        description="Измените запрос или обновите журнал, чтобы получить новые события."
         icon="audit"
-    /></AsyncState>
+        ><button v-if="search" class="button secondary" @click="search = ''">
+          Сбросить поиск
+        </button></EmptyState
+      >
+      <Pagination v-model:page="page" :total="visible.length" />
+    </AsyncState>
   </section>
 </template>

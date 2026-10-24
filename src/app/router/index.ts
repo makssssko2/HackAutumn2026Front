@@ -59,7 +59,11 @@ export const router = createRouter({
       component: () => import('@/pages/audit'),
       meta: { title: 'Журнал действий', admin: true },
     },
-    { path: '/:pathMatch(.*)*', component: () => import('@/pages/not-found') },
+    {
+      path: '/:pathMatch(.*)*',
+      component: () => import('@/pages/not-found'),
+      meta: { title: 'Страница не найдена' },
+    },
   ],
 })
 

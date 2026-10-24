@@ -40,52 +40,90 @@ async function stop(id: string, title: string) {
   </div>
   <p v-if="operationError" role="alert" class="error-box">{{ operationError }}</p>
   <AsyncState :loading="loading" :error="error" @retry="reload"
-    ><section v-if="data.length" class="panel table-scroll">
-      <table class="ledger">
-        <thead>
-          <tr>
-            <th>Платеж</th>
-            <th>Сумма за период</th>
-            <th>Повторение</th>
-            <th>Первый срок</th>
-            <th>Рассылка</th>
-            <th>Состояние</th>
-            <th />
-          </tr>
-        </thead>
-        <tbody>
-          <tr v-for="payment in data" :key="payment.id">
-            <td>
-              <strong>{{ payment.title }}</strong
-              ><small>{{ payment.description || 'Регулярный расход' }}</small>
-            </td>
-            <td class="amount">{{ money(payment.amount, payment.currency) }}</td>
-            <td>{{ frequencyLabel[payment.frequency] }}</td>
-            <td>{{ dateLabel(payment.first_due_date) }}</td>
-            <td>
-              {{
-                payment.group_ids.length ? `${payment.group_ids.length} групп` : 'Всем получателям'
-              }}
-            </td>
-            <td>
-              <span class="status" :class="payment.active ? 'paid' : 'cancelled'"
-                ><span class="status-dot" />{{ payment.active ? 'Активен' : 'Прекращен' }}</span
-              >
-            </td>
-            <td>
-              <button
-                v-if="payment.active && session.isAdmin"
-                class="text-button danger-text"
-                :disabled="busy === payment.id"
-                @click="stop(payment.id, payment.title)"
-              >
-                {{ busy === payment.id ? 'Сохраняем…' : 'Прекратить' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
-    </section>
+    ><template v-if="data.length">
+      <ul class="mobile-record-list panel">
+        <li v-for="payment in data" :key="payment.id">
+          <div class="record-heading">
+            <strong>{{ payment.title }}</strong
+            ><span class="status" :class="payment.active ? 'paid' : 'cancelled'">{{
+              payment.active ? 'Активен' : 'Прекращен'
+            }}</span>
+          </div>
+          <p class="amount">
+            {{ money(payment.amount, payment.currency) }}
+            <span class="muted"
+              >/ {{ frequencyLabel[payment.frequency].toLocaleLowerCase('ru') }}</span
+            >
+          </p>
+          <p v-if="payment.description" class="record-details">{{ payment.description }}</p>
+          <p class="muted">Первый срок: {{ dateLabel(payment.first_due_date) }}</p>
+          <p class="muted">
+            Рассылка:
+            {{
+              payment.group_ids.length
+                ? `выбранным группам (${payment.group_ids.length})`
+                : 'всем активным каналам'
+            }}
+          </p>
+          <button
+            v-if="payment.active && session.isAdmin"
+            class="text-button danger-text"
+            :disabled="busy === payment.id"
+            @click="stop(payment.id, payment.title)"
+          >
+            {{ busy === payment.id ? 'Прекращаем…' : 'Прекратить повторение' }}
+          </button>
+        </li>
+      </ul>
+      <section class="panel table-scroll desktop-record-table">
+        <table class="ledger">
+          <thead>
+            <tr>
+              <th>Платеж</th>
+              <th>Сумма за период</th>
+              <th>Повторение</th>
+              <th>Первый срок</th>
+              <th>Рассылка</th>
+              <th>Состояние</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="payment in data" :key="payment.id">
+              <td>
+                <strong>{{ payment.title }}</strong
+                ><small>{{ payment.description || 'Регулярный расход' }}</small>
+              </td>
+              <td class="amount">{{ money(payment.amount, payment.currency) }}</td>
+              <td>{{ frequencyLabel[payment.frequency] }}</td>
+              <td>{{ dateLabel(payment.first_due_date) }}</td>
+              <td>
+                {{
+                  payment.group_ids.length
+                    ? `Выбранным группам (${payment.group_ids.length})`
+                    : 'Всем активным каналам'
+                }}
+              </td>
+              <td>
+                <span class="status" :class="payment.active ? 'paid' : 'cancelled'"
+                  ><span class="status-dot" />{{ payment.active ? 'Активен' : 'Прекращен' }}</span
+                >
+              </td>
+              <td>
+                <button
+                  v-if="payment.active && session.isAdmin"
+                  class="text-button danger-text"
+                  :disabled="busy === payment.id"
+                  @click="stop(payment.id, payment.title)"
+                >
+                  {{ busy === payment.id ? 'Сохраняем…' : 'Прекратить' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </section>
+    </template>
     <EmptyState
       v-else
       title="Добавьте первый регулярный платеж"

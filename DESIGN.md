@@ -22,6 +22,12 @@ One system sans family, Russian-friendly. Compact UI with a 14px base and 28–3
 
 Consistent buttons, fields, status labels, restrained 12–16px panel corners. No decorative gradients, metric sparklines or invented claims. Focus-visible rings, keyboard-operable controls, explicit loading/error/empty states. Drawn icons from Lucide. Motion only for state feedback, with reduced-motion support.
 
+Body text uses 14px, secondary text 13px and captions 12px. Main controls and mobile action rows provide 44px targets. The mobile navigation is a modal drawer with an explicit close button, background inertness and focus restoration. Selected filter buttons expose their pressed state. File upload focus is drawn around its visible label.
+
+On mobile, invoices, recurring schedules, participants and audit entries become flat lists with all essential fields visible. Currency budgets retain an explicitly labelled scroll region. Journals show 12 loaded records per page and expose filters/reset actions. The overview leads with overdue attention and invoices, followed by currency summaries. Issuing a new invoice remains a persistent primary action.
+
+Channel activation and Telegram binding are independent facts. An enabled, unbound channel shows both states and a connection action; it is never silently disabled. Invoice creation has explicit all-channels/group modes and a deduplicated preview with readiness notes. The administrator journal is explained separately from external recipients.
+
 ## Content
 
 Use actual API data. Label demo mode. Currency totals never mix. Error messages include a recovery action. Confirmation names the invoice and amount. No fiscal or real money claims.

@@ -22,6 +22,7 @@ const route = useRoute()
 const path = computed(() => `/public/payments/${encodeURIComponent(String(route.params.token))}`)
 const invoice = ref<Invoice | null>(null)
 const error = ref('')
+const invalidLink = ref(false)
 const loading = ref(true)
 const submitting = ref(false)
 const paidAt = ref('')
@@ -30,10 +31,12 @@ async function load() {
   loading.value = true
   invoice.value = null
   error.value = ''
+  invalidLink.value = false
   try {
     invoice.value = await api<Invoice>(path.value)
     paidAt.value = invoice.value.today
   } catch (e) {
+    invalidLink.value = e instanceof ApiError && e.status === 404
     error.value = (e as Error).message
   } finally {
     loading.value = false
@@ -140,14 +143,16 @@ watch(path, load, { immediate: true })
       </template>
       <p v-else-if="loading" role="status">Загружаем счет…</p>
       <template v-else
-        ><h1>Не удалось открыть счет</h1>
+        ><h1>{{ invalidLink ? 'Ссылка на счет недействительна' : 'Не удалось открыть счет' }}</h1>
         <p class="recipient-note">
           Проверьте ссылку из письма или запросите новое уведомление у администратора.
         </p></template
       >
-      <div v-if="error" class="error-box" role="alert">
+      <div v-if="error && !invalidLink" class="error-box" role="alert">
         {{ error
-        }}<button v-if="!invoice" class="button secondary" @click="load">Попробовать снова</button>
+        }}<button v-if="!invoice && !invalidLink" class="button secondary" @click="load">
+          Попробовать снова
+        </button>
       </div>
     </article>
     <p class="recipient-footer">
@@ -160,9 +165,9 @@ watch(path, load, { immediate: true })
 <style scoped>
 .recipient-page {
   min-height: 100dvh;
-  background: #faf7f3;
+  background: var(--ground);
   padding: 44px 20px;
-  color: #202020;
+  color: var(--ink);
 }
 .recipient-brand {
   display: flex;
@@ -174,11 +179,11 @@ watch(path, load, { immediate: true })
   letter-spacing: -0.025em;
 }
 .recipient-brand svg {
-  color: #a74700;
+  color: var(--accent-ink);
 }
 .recipient-brand strong {
   font-weight: 400;
-  color: #615d58;
+  color: var(--muted);
 }
 .recipient-sheet {
   max-width: 540px;
@@ -192,12 +197,12 @@ watch(path, load, { immediate: true })
   display: flex;
   align-items: center;
   gap: 8px;
-  color: #914200;
+  color: var(--accent-ink);
   font-size: 14px;
   font-weight: 600;
 }
 .recipient-status.settled {
-  color: #256343;
+  color: var(--success);
 }
 h1 {
   font-size: 27px;
@@ -207,7 +212,7 @@ h1 {
   overflow-wrap: anywhere;
 }
 .recipient-amount {
-  font-size: clamp(28px, 7vw, 40px);
+  font-size: 36px;
   font-weight: 600;
   letter-spacing: -0.03em;
   font-variant-numeric: tabular-nums;
@@ -216,7 +221,7 @@ h1 {
 .recipient-details {
   margin: 0 0 28px;
   padding-bottom: 22px;
-  border-bottom: 1px solid #ebe7e1;
+  border-bottom: 1px solid var(--line);
 }
 .recipient-details div {
   display: flex;
@@ -226,7 +231,7 @@ h1 {
   font-size: 14px;
 }
 dt {
-  color: #67615a;
+  color: var(--muted);
 }
 dd {
   margin: 0;
@@ -235,8 +240,8 @@ dd {
 .recipient-note {
   font-size: 14px;
   line-height: 1.6;
-  background: #fff0e2;
-  color: #774014;
+  background: var(--accent-pale);
+  color: var(--accent-ink);
   border-radius: 12px;
   padding: 16px;
   margin: 0 0 24px;
@@ -249,7 +254,7 @@ dd {
 }
 .recipient-field span {
   font-weight: 400;
-  color: #70695f;
+  color: var(--muted);
   margin-left: 6px;
 }
 .recipient-field input {
@@ -258,32 +263,32 @@ dd {
   margin-top: 8px;
   min-height: 48px;
   background: #fff;
-  caret-color: #914200;
+  caret-color: var(--accent-ink);
 }
 .recipient-demo {
   font-size: 13px;
   line-height: 1.6;
-  color: #67615a;
+  color: var(--muted);
   margin: 26px 0 20px;
 }
 .recipient-submit {
   width: 100%;
   min-height: 50px;
-  background: #ff8000;
-  color: #202020;
+  background: var(--accent);
+  color: var(--ink);
   justify-content: center;
   font-weight: 600;
   font-size: 15px;
 }
 .recipient-submit:hover {
-  background: #ec7600;
-  color: #202020;
+  background: var(--accent-hover);
+  color: var(--ink);
 }
 .recipient-footer {
   text-align: center;
   max-width: 480px;
   margin: 24px auto 0;
-  color: #71685e;
+  color: var(--muted);
   font-size: 12px;
   line-height: 1.7;
 }

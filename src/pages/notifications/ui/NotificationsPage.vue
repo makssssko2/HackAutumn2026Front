@@ -3,8 +3,8 @@ import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
 import type { Occurrence } from '@/entities/payment'
 import { api } from '@/shared/api'
-import { dateLabel, money, useAsyncData } from '@/shared/lib'
-import { AppIcon, AsyncState, EmptyState } from '@/shared/ui'
+import { dateLabel, money, useAsyncData, usePagination } from '@/shared/lib'
+import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 interface Delivery {
   id: string
   occurrence_id: string
@@ -12,6 +12,7 @@ interface Delivery {
   amount: string
   currency: string
   channel_name: string
+  channel_id: string
   channel_kind: string
   status: string
   event: string
@@ -24,11 +25,35 @@ interface Delivery {
 }
 const { data, loading, error, reload } = useAsyncData(() => api<Delivery[]>('/notifications'), [])
 const filter = ref(''),
+  search = ref(''),
+  channelFilter = ref(''),
   operationError = ref(''),
   busy = ref('')
 const visible = computed(() =>
-  data.value.filter((delivery) => !filter.value || delivery.status === filter.value),
+  data.value.filter(
+    (delivery) =>
+      (!filter.value || delivery.status === filter.value) &&
+      (!channelFilter.value || delivery.channel_id === channelFilter.value) &&
+      `${delivery.title} ${delivery.channel_name}`
+        .toLocaleLowerCase('ru')
+        .includes(search.value.toLocaleLowerCase('ru')),
+  ),
 )
+const channelOptions = computed(() => [
+  ...new Map(data.value.map((d) => [d.channel_id, d.channel_name])).entries(),
+])
+const { page, pageRows } = usePagination(visible)
+const failures = computed(
+  () => data.value.filter((d) => ['failed', 'uncertain'].includes(d.status)).length,
+)
+const pending = computed(
+  () => data.value.filter((d) => ['pending', 'sending', 'retry'].includes(d.status)).length,
+)
+function reset() {
+  filter.value = ''
+  search.value = ''
+  channelFilter.value = ''
+}
 const labels: Record<string, string> = {
   pending: 'В очереди',
   sending: 'Отправляется',
@@ -65,7 +90,8 @@ async function retry(id: string) {
     <div>
       <h1>Журнал рассылок</h1>
       <p>
-        История отправок по всем каналам и повторные попытки. Участники оплачивают счета в Telegram.
+        Результаты отправки в Telegram, email и другие каналы. Каждая запись — отдельное событие
+        доставки.
       </p>
     </div>
     <button class="button secondary" @click="reload">
@@ -74,17 +100,38 @@ async function retry(id: string) {
   </div>
   <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
   <section class="panel">
+    <div class="delivery-summary">
+      <span
+        >Загружено: <strong>{{ data.length }}</strong></span
+      ><span
+        >Требуют проверки: <strong>{{ failures }}</strong></span
+      ><span
+        >В работе: <strong>{{ pending }}</strong></span
+      >
+    </div>
     <div class="filters">
+      <label class="search-field"
+        ><AppIcon name="search" :size="18" /><input
+          v-model="search"
+          aria-label="Поиск в рассылках"
+          placeholder="Счет или канал"
+      /></label>
       <select v-model="filter" aria-label="Статус доставки">
         <option value="">Все статусы</option>
         <option v-for="(label, value) in labels" :key="value" :value="value">
           {{ label }}
         </option></select
-      ><span class="muted">Статусы доставки счетов и напоминаний получателям.</span>
+      ><select v-model="channelFilter" aria-label="Канал доставки">
+        <option value="">Все каналы</option>
+        <option v-for="[id, name] in channelOptions" :key="id" :value="id">{{ name }}</option>
+      </select>
+      <button v-if="filter || search || channelFilter" class="text-button" @click="reset">
+        Сбросить фильтры
+      </button>
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
       ><div v-if="visible.length" class="notification-list">
-        <article v-for="delivery in visible" :key="delivery.id" class="notification-item">
+        <article v-for="delivery in pageRows" :key="delivery.id" class="notification-item">
           <span class="notification-symbol"
             ><AppIcon :name="delivery.channel_kind" :size="22"
           /></span>
@@ -134,9 +181,18 @@ async function retry(id: string) {
       </div>
       <EmptyState
         v-else
-        title="Подходящих уведомлений пока нет"
-        description="Они появятся после создания счетов или наступления срока напоминания."
+        :title="filter || search || channelFilter ? 'Отправки не найдены' : 'Отправок пока нет'"
+        :description="
+          filter || search || channelFilter
+            ? 'Измените условия поиска или сбросьте фильтры.'
+            : 'Здесь появятся результаты отправки счетов и напоминаний.'
+        "
         icon="notifications"
-    /></AsyncState>
+        ><button v-if="filter || search || channelFilter" class="button secondary" @click="reset">
+          Сбросить фильтры
+        </button></EmptyState
+      >
+      <Pagination v-model:page="page" :total="visible.length" />
+    </AsyncState>
   </section>
 </template>
