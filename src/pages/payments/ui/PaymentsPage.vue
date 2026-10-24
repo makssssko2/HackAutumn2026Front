@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, onUnmounted, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
-import { paymentApi, PaymentTable, type Occurrence } from '@/entities/payment'
+import { paymentApi, PaymentTable, type Occurrence, type PaymentDateSort } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import { AppIcon, AsyncState } from '@/shared/ui'
 import { currencies, dateISO, monthRange, useAsyncData } from '@/shared/lib'
@@ -17,6 +17,7 @@ const paymentType = ref(
     : '',
 )
 const search = ref('')
+const sort = ref<PaymentDateSort>({ field: 'due_date', direction: 'asc' })
 const filtered = computed(
   () =>
     !!(search.value || status.value || currency.value || paymentType.value || !allPeriods.value),
@@ -97,7 +98,13 @@ onUnmounted(() => clearTimeout(timer))
       >
     </div>
     <AsyncState :loading="loading" :error="error" @retry="reload"
-      ><PaymentTable :payments="rows" :filtered="filtered" @reset="reset" />
+      ><PaymentTable
+        v-model:sort="sort"
+        sortable
+        :payments="rows"
+        :filtered="filtered"
+        @reset="reset"
+      />
       <div class="table-footer">Найдено счетов: {{ rows.length }}</div></AsyncState
     >
   </section>

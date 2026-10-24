@@ -58,6 +58,8 @@ Requires Back migration **0005** and the API in `Back/docs/frontend-guide.md`. F
 
 Invoice creation explicitly selects all active channels or selected groups, with a deduplicated recipient preview. An enabled Telegram channel may be unbound; activation and chat readiness are displayed separately. The preview describes recipients for a new invoice; delivery results remain authoritative in the journal. Notifications support search, channel/status filters and local pagination; the action journal also paginates loaded records. Mobile invoices, recurrences, users and audit records use readable lists. The mobile navigation traps keyboard focus while open and supports Escape and focus restoration.
 
+The main invoice list sorts loaded rows by due date or actual payment date. Clicking a date header toggles direction; empty actual dates stay last in either order. The selection survives filter reloads. Mobile lists expose the same choices in a labelled select. Sorted headers use `aria-sort` and native keyboard-operable buttons.
+
 ## Design
 
 `PRODUCT.md` records confirmed requirements. `DESIGN.md` records the visual system. Current user-provided Aeza screenshots define orange, pale peach, white and graphite. Impeccable's Operate guidance informs hierarchy, restrained decoration, keyboard focus, responsive structure and explicit state feedback. Invoice Keeper retains its own identity.
