@@ -45,10 +45,12 @@ async function logout() {
   }
 }
 function expired() {
+  if (route.meta.public) return
   session.user = null
   router.push('/login')
 }
 async function syncSession() {
+  if (route.meta.public) return
   await session.refreshIdentity()
   if (!session.user && route.path !== '/login') router.push('/login')
   else if (route.meta.admin && !session.isAdmin) router.push('/')
@@ -65,7 +67,7 @@ onUnmounted(() => {
 })
 </script>
 <template>
-  <RouterView v-if="route.path === '/login'" />
+  <RouterView v-if="route.path === '/login' || route.meta.public" />
   <div v-else-if="session.user" class="workspace">
     <a class="skip-link" href="#main-content">К содержимому</a
     ><button

@@ -14,7 +14,7 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` to the backend, so session cookies remain HttpOnly and no token is stored in localStorage. `VITE_API_PROXY_TARGET` changes the API upstream. The backend origin allowlist must include the browser's origin.
 
-Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. Only this role can sign in to the web panel or use its authenticated API. Participants, including the demo participant record, have no web access and pay directly in the connected Telegram group.
+Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. Only this role can sign in to the web panel or use its authenticated API. Participants have no access to the administrator workspace. They confirm payment in Telegram or through a private link to one invoice in an email.
 
 ## Docker
 
@@ -45,7 +45,7 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
 
-The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal or web payment. Recipients pay in Telegram and receive a receipt there. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes sender SMTP setup and a Telegram group-selector button: no manual command is required, and the short-lived binding code is passed by Telegram automatically.
+The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal. Recipients confirm payment in Telegram or through a private single-invoice link in email. The isolated `/pay/:token` page works without login and cannot access admin data. Opening it does not pay; explicit confirmation is required. It supports actual payment date selection and downloading the demo receipt. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes sender SMTP setup and a Telegram group-selector button: no manual command is required, and the short-lived binding code is passed by Telegram automatically.
 
 ## Screens
 
@@ -55,4 +55,4 @@ Admin-only overview, filterable invoices, invoice card and independent periods, 
 
 `PRODUCT.md` records confirmed requirements. `DESIGN.md` records the visual system. Current user-provided Aeza screenshots define orange, pale peach, white and graphite. Impeccable's Operate guidance informs hierarchy, restrained decoration, keyboard focus, responsive structure and explicit state feedback. Invoice Keeper retains its own identity.
 
-No remote repository or publication has been configured.
+GitHub: https://github.com/makssssko2/HackAutumn2026Front. Deployment: https://aezainvoice.xxxmgxxx.com. Environment files remain ignored.

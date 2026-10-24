@@ -5,6 +5,11 @@ export const router = createRouter({
   history: createWebHistory(),
   scrollBehavior: (_to, _from, saved) => saved || { top: 0 },
   routes: [
+    {
+      path: '/pay/:token',
+      component: () => import('@/pages/pay-invoice'),
+      meta: { public: true, title: 'Оплата счета' },
+    },
     { path: '/login', component: () => import('@/pages/login') },
     { path: '/', component: () => import('@/pages/overview'), meta: { title: 'Обзор' } },
     { path: '/payments', component: () => import('@/pages/payments'), meta: { title: 'Счета' } },
@@ -59,6 +64,10 @@ export const router = createRouter({
 })
 
 router.beforeEach(async (to) => {
+  if (to.meta.public) {
+    document.title = 'Оплата счета · Invoice Keeper'
+    return true
+  }
   const session = useSession()
   if (!session.ready) await session.restore()
   else if (to.path !== '/login') await session.refreshIdentity()

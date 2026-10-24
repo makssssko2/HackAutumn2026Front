@@ -25,3 +25,7 @@ Consistent buttons, fields, status labels, restrained 12–16px panel corners. N
 ## Content
 
 Use actual API data. Label demo mode. Currency totals never mix. Error messages include a recovery action. Confirmation names the invoice and amount. No fiscal or real money claims.
+
+## Recipient invoice
+
+The private email invoice is a standalone narrow sheet without workspace navigation. Show title, amount, due date, actual-date selection and one explicit confirmation action. Orange uses graphite text; muted peach explains backdating. Paid, cancelled, expired, loading and failure states are explicit. Links are capabilities, so suppress referrers and caching on /pay/.
