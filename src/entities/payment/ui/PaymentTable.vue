@@ -4,6 +4,7 @@ import { money, dateLabel } from '@/shared/lib'
 import { AppIcon, EmptyState } from '@/shared/ui'
 import PaymentStatus from './PaymentStatus.vue'
 import type { Occurrence } from '../model/types'
+import { paymentTypeLabel } from '../model/payment'
 withDefaults(defineProps<{ payments: Occurrence[]; compact?: boolean; filtered?: boolean }>(), {
   filtered: false,
 })
@@ -18,6 +19,10 @@ defineEmits<{ reset: [] }>()
             <strong>{{ payment.title }}</strong
             ><AppIcon name="arrow" :size="18" />
           </div>
+          <span class="payment-kind">{{
+            paymentTypeLabel[payment.payment_type || 'recurring']
+          }}</span>
+          <p v-if="payment.description" class="payment-description">{{ payment.description }}</p>
           <div class="mobile-payment-values">
             <span class="amount">{{ money(payment.amount, payment.currency) }}</span
             ><PaymentStatus :payment="payment" />
@@ -53,8 +58,17 @@ defineEmits<{ reset: [] }>()
                 ><span class="payment-symbol"><AppIcon name="payments" :size="18" /></span
                 ><span
                   >{{ payment.title
-                  }}<small>{{
-                    dateLabel(payment.due_date, { month: 'long', year: 'numeric' })
+                  }}<small class="payment-kind"
+                    >{{ paymentTypeLabel[payment.payment_type || 'recurring']
+                    }}<template v-if="payment.payment_type !== 'one_time'">
+                      ·
+                      {{
+                        dateLabel(payment.due_date, { month: 'long', year: 'numeric' })
+                      }}</template
+                    ></small
+                  >
+                  <small v-if="payment.description" class="payment-description">{{
+                    payment.description
                   }}</small></span
                 ></RouterLink
               >

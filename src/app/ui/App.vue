@@ -69,7 +69,7 @@ const primary = computed(() => [
   ['/recurring', 'recurring', 'Регулярные платежи'],
   ['/calendar', 'calendar', 'Календарь'],
   ['/budget', 'budget', 'Бюджет'],
-  ['/notifications', 'notifications', session.isAdmin ? 'Журнал рассылок' : 'Уведомления'],
+  ...(session.isAdmin ? [['/notifications', 'notifications', 'Журнал рассылок']] : []),
 ])
 const management = [
   ['/users', 'users', 'Пользователи'],
@@ -101,7 +101,7 @@ async function syncSession() {
   if (route.meta.public) return
   await session.refreshIdentity()
   if (!session.user && route.path !== '/login') router.push('/login')
-  else if (route.meta.admin && !session.isAdmin) router.push('/')
+  else if (route.meta.admin && !session.isAdmin) router.push('/forbidden')
 }
 onMounted(() => {
   window.addEventListener('session-expired', expired)
@@ -156,7 +156,7 @@ onUnmounted(() => {
         <div>
           <strong>{{ session.isAdmin ? 'Панель администратора' : 'Кабинет пользователя' }}</strong
           ><small>{{
-            session.isAdmin ? 'Выставление счетов и рассылки' : 'Уведомления и история оплат'
+            session.isAdmin ? 'Выставление счетов и рассылки' : 'Счета, оплата и документы'
           }}</small>
         </div>
       </div>
@@ -216,7 +216,11 @@ onUnmounted(() => {
         </div>
         <div class="topbar-right">
           <span class="timezone">{{ session.settings?.timezone }}</span
-          ><RouterLink to="/notifications" class="icon-button" aria-label="Уведомления"
+          ><RouterLink
+            v-if="session.isAdmin"
+            to="/notifications"
+            class="icon-button"
+            aria-label="Журнал рассылок"
             ><AppIcon name="notifications" /></RouterLink
           ><span class="topbar-separator" /><span class="user-avatar">{{ initials }}</span>
           <div class="user-info">

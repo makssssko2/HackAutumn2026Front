@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { paymentApi } from '@/entities/payment'
+import { paymentApi, reminderWindow, type PaymentType } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import {
   recipientChannels,
@@ -25,6 +25,15 @@ const form = reactive({
   group_ids: [] as string[],
 })
 const recipientMode = ref<'all' | 'groups'>('all')
+const paymentType = ref<PaymentType>('recurring')
+const notifyImmediately = computed(
+  () =>
+    paymentType.value === 'recurring' ||
+    reminderWindow(
+      { paid: false, cancelled: false, due_date: form.first_due_date },
+      session.settings?.today || dateISO(),
+    ),
+)
 const selectedGroupIds = computed(() => (recipientMode.value === 'all' ? [] : form.group_ids))
 const {
   data: recipients,
@@ -54,6 +63,7 @@ const pendingChats = computed(() => targets.value.filter(needsChat).length)
 const busy = ref(false),
   error = ref('')
 async function submit() {
+  if (busy.value) return
   if (recipientMode.value === 'groups' && !form.group_ids.length) {
     error.value = 'Выберите хотя бы одну группу или режим «Всем активным каналам».'
     return
@@ -65,9 +75,30 @@ async function submit() {
   busy.value = true
   error.value = ''
   try {
-    const payment = await paymentApi.create({ ...form, group_ids: selectedGroupIds.value })
-    const rows = await paymentApi.list({ recurring_id: payment.id })
-    router.push(rows[0] ? `/payments/${rows[0].id}?issued=1` : '/recurring')
+    const savedType = paymentType.value
+    const immediate = notifyImmediately.value
+    const common = {
+      title: form.title,
+      description: form.description,
+      amount: form.amount,
+      currency: form.currency,
+      group_ids: selectedGroupIds.value,
+    }
+    const payment =
+      savedType === 'one_time'
+        ? await paymentApi.createOneTime({ ...common, due_date: form.first_due_date })
+        : await paymentApi.create({
+            ...common,
+            first_due_date: form.first_due_date,
+            frequency: form.frequency,
+          })
+    // A successful create must not be repeated if the follow-up lookup fails.
+    const rows = await paymentApi.list({ recurring_id: payment.id }).catch(() => [])
+    router.push(
+      rows[0]
+        ? `/payments/${rows[0].id}?issued=1&delivery=${immediate ? 'queued' : 'scheduled'}`
+        : `/payments?all=1&payment_type=${savedType}&created=1`,
+    )
   } catch (e) {
     error.value = (e as Error).message
   } finally {
@@ -82,12 +113,40 @@ async function submit() {
   <div class="page-heading">
     <div>
       <h1>Выставить счет</h1>
-      <p>Укажите сумму, срок и получателей. Пользователи подтвердят оплату из уведомления.</p>
+      <p>Укажите сумму, срок и получателей. Оплату можно подтвердить в вебе или из уведомления.</p>
     </div>
   </div>
   <div class="form-layout">
     <form class="panel form-panel" @submit.prevent="submit">
       <h2>Что нужно оплатить</h2>
+      <fieldset class="payment-type-choice">
+        <legend>Тип платежа</legend>
+        <div class="recipient-modes">
+          <label class="choice-row"
+            ><input
+              v-model="paymentType"
+              type="radio"
+              name="payment-type"
+              value="recurring"
+            />Регулярный</label
+          >
+          <label class="choice-row"
+            ><input
+              v-model="paymentType"
+              type="radio"
+              name="payment-type"
+              value="one_time"
+            />Разовый</label
+          >
+        </div>
+        <p class="field-help">
+          {{
+            paymentType === 'one_time'
+              ? 'Один счет на выбранную дату, без повторения.'
+              : 'Отдельный счет на каждый период по расписанию.'
+          }}
+        </p>
+      </fieldset>
       <label
         >Название<input
           v-model="form.title"
@@ -124,7 +183,7 @@ async function submit() {
             min="2000-01-01"
             max="2100-12-31"
             required /></label
-        ><label
+        ><label v-if="paymentType === 'recurring'"
           >Повторение<select v-model="form.frequency">
             <option v-for="(label, value) in frequencyLabel" :key="value" :value="value">
               {{ label }}
@@ -189,7 +248,7 @@ async function submit() {
           {{
             recipientMode === 'groups' && !form.group_ids.length
               ? 'Выберите группы, чтобы увидеть адресатов.'
-              : 'Внешних адресатов нет. Счет останется в журнале администратора.'
+              : 'Внешних адресатов нет. Счет будет доступен в списке счетов.'
           }}
         </p>
         <p v-if="pendingChats" class="recipient-warning">
@@ -197,8 +256,12 @@ async function submit() {
           подключения.
         </p>
         <p class="field-help">
-          Предварительный список для нового счета. Результат отправки появится в журнале рассылок.
-          Журнал администратора ведется отдельно.
+          Список по текущим подключениям. Адресаты определяются при выпуске уведомления. Результат
+          отправки появится в журнале рассылок; журнал администратора ведется отдельно.
+        </p>
+        <p v-if="!notifyImmediately" class="recipient-warning">
+          Счет будет сохранен без немедленной рассылки. Напоминание выйдет, когда до срока останется
+          три дня.
         </p>
       </section>
       <p v-if="recipientsError" class="error-text">
@@ -210,7 +273,11 @@ async function submit() {
         <RouterLink to="/recurring" class="button secondary">Отмена</RouterLink
         ><button class="button" :disabled="busy || recipientsLoading || !!recipientsError">
           <AppIcon :name="busy ? 'loading' : 'plus'" :size="17" />{{
-            busy ? 'Выставляем…' : 'Выставить счет и уведомить'
+            busy
+              ? 'Сохраняем…'
+              : notifyImmediately
+                ? 'Выставить счет и уведомить'
+                : 'Сохранить разовый счет'
           }}
         </button>
       </div>
@@ -218,22 +285,28 @@ async function submit() {
     <aside class="form-aside">
       <h2>Как это работает</h2>
       <p>
-        Вы выставляете счет. Система отправляет сообщение получателям. Участник подтверждает оплату
-        в уведомлении, а здесь обновляются статус и чек.
+        Вы создаете разовый счет или регулярный платеж. После выпуска уведомления участники увидят
+        сумму, срок и описание счета.
       </p>
       <div class="preview-invoice">
         <AppIcon name="payments" :size="23" /><strong>{{ form.title || 'Название платежа' }}</strong
         ><span>{{ money(form.amount || 0, form.currency) }}</span
-        ><small>{{ frequencyLabel[form.frequency] }}</small>
+        ><small>{{
+          paymentType === 'one_time' ? 'Разовый платеж' : frequencyLabel[form.frequency]
+        }}</small>
+        <p v-if="form.description" class="preview-description">{{ form.description }}</p>
       </div>
       <RouterLink to="/settings" class="text-link"
         >Подключить Telegram или другой канал<AppIcon name="arrow" :size="15"
       /></RouterLink>
       <p>
-        Напоминание отправится за три дня до срока. Если до оплаты осталось меньше трех дней — сразу
-        после создания.
+        Регулярный платеж уведомляет о первом счете сразу. Разовый — при создании, если до срока не
+        больше трех дней, иначе напоминание выйдет позже.
       </p>
-      <p>Если нужного числа нет в месяце, срок переносится на его последний день.</p>
+      <p v-if="paymentType === 'recurring'">
+        Будущие периоды создаются для бюджета заранее, а напоминания выпускаются за три дня до
+        срока. Если нужного числа нет в месяце, срок переносится на последний день.
+      </p>
     </aside>
   </div>
 </template>

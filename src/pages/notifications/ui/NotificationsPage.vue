@@ -1,14 +1,15 @@
 <script setup lang="ts">
 import { computed, ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import type { Occurrence } from '@/entities/payment'
-import { api } from '@/shared/api'
+import { paymentTypeLabel, type Occurrence, type PaymentType } from '@/entities/payment'
+import { api, ApiError } from '@/shared/api'
 import { dateLabel, money, useAsyncData, usePagination } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 interface Delivery {
   id: string
   occurrence_id: string
   title: string
+  payment_type: PaymentType
   amount: string
   currency: string
   channel_name: string
@@ -34,7 +35,7 @@ const visible = computed(() =>
     (delivery) =>
       (!filter.value || delivery.status === filter.value) &&
       (!channelFilter.value || delivery.channel_id === channelFilter.value) &&
-      `${delivery.title} ${delivery.channel_name}`
+      `${delivery.title} ${delivery.payment.description || ''} ${delivery.channel_name}`
         .toLocaleLowerCase('ru')
         .includes(search.value.toLocaleLowerCase('ru')),
   ),
@@ -73,12 +74,20 @@ function eventLabel(event: string) {
         : 'Тест канала'
 }
 async function retry(id: string) {
+  if (
+    data.value.find((d) => d.id === id)?.status === 'uncertain' &&
+    !window.confirm(
+      'Результат предыдущей доставки неизвестен. Проверьте сообщение в канале: повторная отправка может создать дубликат. Повторить после проверки?',
+    )
+  )
+    return
   busy.value = id
   operationError.value = ''
   try {
     await api(`/notifications/${id}/retry`, { method: 'POST' })
     await reload()
   } catch (e) {
+    if (e instanceof ApiError && e.status === 409) await reload()
     operationError.value = (e as Error).message
   } finally {
     busy.value = ''
@@ -114,7 +123,7 @@ async function retry(id: string) {
         ><AppIcon name="search" :size="18" /><input
           v-model="search"
           aria-label="Поиск в рассылках"
-          placeholder="Счет или канал"
+          placeholder="Название, описание или канал"
       /></label>
       <select v-model="filter" aria-label="Статус доставки">
         <option value="">Все статусы</option>
@@ -139,7 +148,11 @@ async function retry(id: string) {
             <RouterLink :to="`/payments/${delivery.occurrence_id}`"
               ><strong>{{ delivery.title }}</strong></RouterLink
             >
+            <p v-if="delivery.payment.description" class="payment-description">
+              {{ delivery.payment.description }}
+            </p>
             <p>
+              {{ paymentTypeLabel[delivery.payment_type || 'recurring'] }} ·
               {{ eventLabel(delivery.event) }} · {{ money(delivery.amount, delivery.currency) }}
             </p>
             <p>Срок оплаты: {{ dateLabel(delivery.due_date) }}</p>
@@ -156,6 +169,9 @@ async function retry(id: string) {
               <template> · попыток {{ delivery.attempts }}</template></small
             >
             <p v-if="delivery.error" class="error-text">{{ delivery.error }}</p>
+            <p v-if="delivery.status === 'uncertain'" class="error-text">
+              Сначала проверьте сообщение в канале, затем решите, нужен ли повтор.
+            </p>
           </div>
           <div class="notification-result">
             <span

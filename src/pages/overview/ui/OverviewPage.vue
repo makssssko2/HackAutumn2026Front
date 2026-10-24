@@ -48,8 +48,8 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
       <p>
         {{
           session.isAdmin
-            ? 'Выставляйте счета и отправляйте их получателям. Оплату участники подтверждают из уведомлений.'
-            : 'Проверяйте сроки и историю. Подтвердить оплату можно в уведомлении о счете.'
+            ? 'Выставляйте счета, проверяйте рассылку и управляйте оплатой каждого периода.'
+            : 'Проверяйте сроки, подтверждайте оплату и храните документы в карточке счета.'
         }}
       </p>
     </div>
@@ -181,8 +181,8 @@ const monthName = computed(() => dateLabel(`${month.value}-01`, { month: 'long',
             <p>
               За три дня до срока — в подключенных каналах. После оплаты напоминания прекращаются.
             </p>
-            <RouterLink :to="session.isAdmin ? '/settings' : '/notifications'" class="text-link"
-              >{{ session.isAdmin ? 'Настроить подключения' : 'Посмотреть уведомления'
+            <RouterLink :to="session.isAdmin ? '/settings' : '/payments'" class="text-link"
+              >{{ session.isAdmin ? 'Настроить подключения' : 'Перейти к счетам'
               }}<AppIcon name="arrow" :size="16"
             /></RouterLink>
           </div>

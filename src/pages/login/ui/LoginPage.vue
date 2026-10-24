@@ -49,7 +49,7 @@ async function submit() {
     <section class="login-form-section">
       <form class="login-form" @submit.prevent="submit">
         <h2>С возвращением</h2>
-        <p class="muted">Вход для администратора. Участники подтверждают оплату из уведомлений.</p>
+        <p class="muted">Вход для администратора и участников команды.</p>
         <label
           >Логин<input
             v-model="login"
@@ -73,8 +73,8 @@ async function submit() {
           }}<AppIcon :name="busy ? 'loading' : 'arrow'" :class="{ spin: busy }" :size="18" />
         </button>
         <p class="login-hint">
-          Здесь администратор выставляет счета и управляет рассылкой. Участникам не нужна учетная
-          запись веб-панели — кнопка оплаты приходит в Telegram или по email.
+          Администратор выставляет счета, участники подтверждают оплату в карточке счета. Кнопки в
+          Telegram и email работают и без веб-аккаунта.
         </p>
       </form>
     </section>

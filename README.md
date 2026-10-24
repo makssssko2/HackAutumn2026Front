@@ -14,7 +14,7 @@ npm run dev
 
 Open `http://localhost:5173`. Vite proxies `/api` to the backend, so session cookies remain HttpOnly and no token is stored in localStorage. `VITE_API_PROXY_TARGET` changes the API upstream. The backend origin allowlist must include the browser's origin.
 
-Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. Only this role can sign in to the web panel or use its authenticated API. Participants have no access to the administrator workspace. They confirm payment in Telegram or through a private link to one invoice in an email.
+Administrator: configured in Back/.env. The local example is `admin / change-me-before-use`. Active `user` and `admin` accounts can sign in. Participants can view invoices, schedules, calendar and budget, confirm/undo payment, correct its actual date, and work with receipts and attachments. Creating/managing payments, users, channels, groups, delivery logs and audit remains administrator-only. Telegram and private email links also work without a web account.
 
 ## Docker
 
@@ -46,11 +46,15 @@ Checks include TypeScript (`vue-tsc`), meaningful date/currency/count tests, and
 
 Each domain slice exposes an `index.ts` public API. Dependencies point down the layers; slices on one layer do not import each other. Page-specific code stays in the page. Shared contains no payment domain logic. `scripts/check-fsd.mjs` verifies layer direction, slice isolation and public API usage, including relative imports.
 
-The administrator issues invoices with the persistent **Выставить счет** action, chooses recipients, then monitors delivery and payment status. There is no participant web portal. Recipients confirm payment in Telegram or through a private single-invoice link in email. The isolated `/pay/:token` page works without login and cannot access admin data. Opening it does not pay; explicit confirmation is required. It supports actual payment date selection and downloading the demo receipt. Identity is refreshed on navigation and focus; the backend rejects participant login and previously issued participant sessions. **Подключения** includes sender SMTP setup and a Telegram group-selector button: no manual command is required, and the short-lived binding code is passed by Telegram automatically.
+The administrator issues recurring or one-time invoices with the persistent **Выставить счет** action. Both roles manage payment state in the selected invoice's detail: confirmation explicitly uses demo mode and the current revision. After a `409`, detail data is reloaded without replaying the mutation. Actual dates can be backdated, not future-dated; due dates stay unchanged. Canceling a one-time invoice is a separate administrator action available while unpaid. A one-time invoice has no other periods.
+
+The isolated `/pay/:token` page works without login and cannot access other invoices or admin data. Opening it does not pay; explicit confirmation is required. It displays the description, actual payment date and demo receipt. Identity is refreshed on navigation and focus; direct administrator routes show an access-denied state for participants, while API authorization remains independently enforced by Back. **Подключения** includes sender SMTP setup and a Telegram group-selector button.
 
 ## Screens
 
-Admin-only overview, filterable invoices, invoice card and independent periods, recurring schedules, calendar with date totals, monthly/yearly currency budget, notification delivery journal, participant record management, recipient groups, channel connections and action audit. The administrator can attach a file/link. All protected routes require administrator authentication, independently enforced by the backend.
+Shared overview, invoices with type/status/currency/date filters, invoice detail, recurring schedules, calendar and monthly/yearly currency budget. Administrator-only creation, delivery journal, users, recipient groups, channel connections and audit. Descriptions appear in invoice lists/details, delivery entries and the public email invoice; empty descriptions do not create an empty block.
+
+Requires Back migration **0005** and the API in `Back/docs/frontend-guide.md`. Future periods for budgets do not imply notifications have been released. One-time invoices due beyond three days are saved without immediate delivery. An eligible unpaid invoice exposes a manual reminder action for the administrator; it calls `/notifications/occurrences/:id/remind`, distinct from retrying an existing delivery. Existing reminders are not duplicated; uncertain delivery requires checking the channel before an explicit retry. Recurring templates remain separate from one-time invoices.
 
 Invoice creation explicitly selects all active channels or selected groups, with a deduplicated recipient preview. An enabled Telegram channel may be unbound; activation and chat readiness are displayed separately. The preview describes recipients for a new invoice; delivery results remain authoritative in the journal. Notifications support search, channel/status filters and local pagination; the action journal also paginates loaded records. Mobile invoices, recurrences, users and audit records use readable lists. The mobile navigation traps keyboard focus while open and supports Escape and focus restoration.
 

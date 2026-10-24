@@ -8,17 +8,24 @@ import { currencies, dateISO, monthRange, useAsyncData } from '@/shared/lib'
 const session = useSession()
 const route = useRoute()
 const month = ref((session.settings?.today || dateISO()).slice(0, 7))
-const allPeriods = ref(route.query.status === 'overdue')
+const allPeriods = ref(route.query.status === 'overdue' || route.query.all === '1')
 const status = ref(String(route.query.status || ''))
 const currency = ref('')
+const paymentType = ref(
+  ['recurring', 'one_time'].includes(String(route.query.payment_type))
+    ? String(route.query.payment_type)
+    : '',
+)
 const search = ref('')
 const filtered = computed(
-  () => !!(search.value || status.value || currency.value || !allPeriods.value),
+  () =>
+    !!(search.value || status.value || currency.value || paymentType.value || !allPeriods.value),
 )
 function reset() {
   search.value = ''
   status.value = ''
   currency.value = ''
+  paymentType.value = ''
   allPeriods.value = true
 }
 const {
@@ -32,11 +39,12 @@ const {
       ...(!allPeriods.value && month.value ? monthRange(month.value) : {}),
       status: status.value,
       currency: currency.value,
+      payment_type: paymentType.value,
       q: search.value,
     }),
   [],
 )
-watch([month, allPeriods, status, currency], reload)
+watch([month, allPeriods, status, currency, paymentType], reload)
 let timer: ReturnType<typeof setTimeout>
 watch(search, () => {
   clearTimeout(timer)
@@ -51,8 +59,8 @@ onUnmounted(() => clearTimeout(timer))
       <p>
         {{
           session.isAdmin
-            ? 'Контролируйте статусы счетов, отправленных получателям.'
-            : 'Сроки, статусы и история каждого периода. Оплата доступна из уведомлений.'
+            ? 'Разовые счета и периоды регулярных платежей: сроки, оплата и документы.'
+            : 'Откройте счет, подтвердите оплату или уточните фактическую дату.'
         }}
       </p>
     </div>
@@ -60,6 +68,9 @@ onUnmounted(() => clearTimeout(timer))
       ><AppIcon name="plus" :size="18" />Выставить счет</RouterLink
     >
   </div>
+  <p v-if="route.query.created" class="success-box" role="status">
+    Платеж создан. Его счет можно найти в списке; повторно создавать платеж не нужно.
+  </p>
   <section class="panel">
     <div class="filters">
       <label class="search-field"
@@ -76,6 +87,10 @@ onUnmounted(() => clearTimeout(timer))
       ><select v-model="currency" aria-label="Валюта">
         <option value="">Все валюты</option>
         <option v-for="item in currencies" :key="item">{{ item }}</option></select
+      ><select v-model="paymentType" aria-label="Тип платежа">
+        <option value="">Все типы платежей</option>
+        <option value="recurring">Регулярные</option>
+        <option value="one_time">Разовые</option></select
       ><input v-model="month" type="month" aria-label="Месяц" :disabled="allPeriods" /><label
         class="checkbox-label"
         ><input v-model="allPeriods" type="checkbox" />Все периоды</label

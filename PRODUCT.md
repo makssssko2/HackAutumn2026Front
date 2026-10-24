@@ -12,7 +12,7 @@ Confirmed: Vue + Vite + TypeScript, Feature-Sliced Design. Separate Python API r
 
 ## Users
 
-Only the administrator can access the web application and its authenticated API. The administrator creates recurring expenses and manages participant records and notification recipients. Participants work through Telegram or a private single-invoice link in an email, without a web account. Neither path grants access to the admin panel.
+Both active `admin` and `user` accounts can access the web application. Participants can view invoices, recurring schedules, calendar and budget, manage the selected invoice's payment state/date, receipts and attachments. The administrator additionally creates/cancels payments, manages users, channels and groups, and accesses audit and delivery administration. Telegram and private email links also work without a web account.
 
 ## Product Purpose
 
@@ -20,7 +20,9 @@ Prevent forgotten recurring payments while preserving a separate payment history
 
 ## Issuing and recipient workflow
 
-Latest user correction overrides the earlier interpretation of the case: there is no participant web portal or payment in the admin panel. The administrative UI issues invoices and monitors delivery and status, without demonstration payment controls. Make «Выставить счет» explicit and persistent. Participants confirm demo payment inside Telegram, or on the isolated /pay/:token page requested for SMTP notifications. This page exposes only one invoice and its active demo receipt. GET never confirms payment. Actual payment dates can be backdated; the due date remains unchanged. In-app notifications are an administrative delivery journal.
+On 2026-10-24 the user explicitly adopted the new Back frontend guide: both roles can confirm demo payment, undo the mark and correct the actual payment date in the web invoice detail. Always send the current expected_revision; refresh after conflicts without repeating a mutation. Actual payment dates may be backdated but never future-dated; the due date stays unchanged. The private /pay/:token page exposes only one invoice and its active demo receipt. GET never confirms payment. In-app notifications remain an administrator-only delivery journal. Keep «Выставить счет» explicit for the administrator.
+
+Payments can be recurring or one-time. One-time invoices create one period and support separate cancellation while unpaid. Descriptions are entered when creating the parent payment and appear in lists, details, notifications and the public invoice. Technical future periods used for budget are distinct from released notifications. A future one-time invoice is saved without immediate delivery until it reaches the three-day window. The administrator may explicitly request a missing reminder, distinct from retrying an existing failed delivery.
 
 ## Capabilities and Constraints
 

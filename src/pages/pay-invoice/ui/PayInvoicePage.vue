@@ -7,6 +7,7 @@ import { AppIcon } from '@/shared/ui'
 
 interface Invoice {
   title: string
+  description: string
   amount: string
   currency: string
   due_date: string
@@ -80,6 +81,7 @@ watch(path, load, { immediate: true })
           }}
         </div>
         <h1>{{ invoice.title }}</h1>
+        <p v-if="invoice.description" class="invoice-description">{{ invoice.description }}</p>
         <p class="recipient-amount">{{ money(invoice.amount, invoice.currency) }}</p>
         <dl class="recipient-details">
           <div>

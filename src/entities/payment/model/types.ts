@@ -1,8 +1,11 @@
 import type { Currency } from '@/shared/lib'
+export type PaymentType = 'recurring' | 'one_time'
 export interface Occurrence {
   id: string
   recurring_id: string
   title: string
+  description: string
+  payment_type: PaymentType
   amount: string
   currency: Currency
   due_date: string

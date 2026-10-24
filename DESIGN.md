@@ -35,3 +35,9 @@ Use actual API data. Label demo mode. Currency totals never mix. Error messages 
 ## Recipient invoice
 
 The private email invoice is a standalone narrow sheet without workspace navigation. Show title, amount, due date, actual-date selection and one explicit confirmation action. Orange uses graphite text; muted peach explains backdating. Paid, cancelled, expired, loading and failure states are explicit. Links are capabilities, so suppress referrers and caching on /pay/.
+
+## Invoice types and payment actions
+
+Use native radio choices for recurring versus one-time creation. Hide recurrence fields for one-time invoices. Explain scheduled delivery before saving a distant one-time invoice; the submit action and success message must not promise immediate sending. Descriptions preserve line breaks in detail and public invoices, and use a readable two-line preview in lists. Type labels are neutral, distinct from payment status.
+
+Both roles can manage a selected invoice's demo payment. Use inline confirmation forms with the invoice name/amount, actual-date input and explicit submit/cancel actions. Explain receipt replacement/voiding before date correction or undo. Keep admin delivery and one-time cancellation actions separate from payment state. Conflicts reload data and require a fresh action; focus moves to feedback. Participants never see administrative navigation, and direct admin links explain the access boundary.
