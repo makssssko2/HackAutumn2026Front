@@ -4,3 +4,10 @@ dist/
 *.tsbuildinfo
 .vite/
 coverage/
+
+# Локальные инструменты разработки и отчеты дизайн-ревью
+.agents/
+.codex/
+.impeccable/
+DESIGN.md
+PRODUCT.md
