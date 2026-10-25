@@ -155,6 +155,7 @@
 }
 .telegram-setup-guide pre {
   overflow: auto;
+  white-space: pre-wrap;
   padding: 12px;
   background: var(--ground);
   border-radius: 8px;
@@ -1835,6 +1836,7 @@ dd {
 .group-row h2,
 .channel-row h2 {
   font-size: 15px;
+  overflow-wrap: anywhere;
 }
 .group-row p,
 .channel-row p {
@@ -1858,6 +1860,8 @@ dd {
   border-radius: 5px;
   padding: 4px 7px;
   color: var(--muted);
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 .channel-actions {
   display: flex;
@@ -2092,6 +2096,13 @@ dd {
     min-height: 110px;
   }
 }
+@media (max-width: 1100px) {
+  .form-layout,
+  .detail-layout {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 24px;
+  }
+}
 @media (max-width: 720px) {
   :root {
     font-size: 14px;
@@ -2125,7 +2136,8 @@ dd {
     margin-bottom: 24px;
   }
   h1 {
-    font-size: 27px;
+    font-size: clamp(24px, 5vw, 27px);
+    text-wrap: balance;
   }
   .page-heading p {
     font-size: var(--text-secondary);
@@ -2204,8 +2216,10 @@ dd {
     gap: 10px;
   }
   .attention-strip {
+    display: grid;
+    grid-template-columns: 35px minmax(0, 1fr);
+    align-items: start;
     padding: 15px;
-    flex-wrap: wrap;
     gap: 11px;
     margin-bottom: 24px;
   }
@@ -2217,7 +2231,11 @@ dd {
     font-size: var(--text-caption);
   }
   .attention-strip > a {
-    margin-left: 46px;
+    grid-column: 2;
+    justify-self: start;
+    min-height: var(--control-height);
+    white-space: normal;
+    margin-left: 0;
     font-size: var(--text-caption);
   }
   .attention-strip strong {
@@ -2427,8 +2445,21 @@ dd {
     gap: 12px;
     flex-wrap: wrap;
   }
+  .group-row {
+    display: grid;
+    grid-template-columns: 43px minmax(0, 1fr) 44px;
+    align-items: start;
+  }
+  .group-row > .group-description {
+    grid-column: 2 / -1;
+  }
   .group-row > .button {
-    margin-left: 55px;
+    grid-column: 2;
+    justify-self: start;
+    margin-left: 0;
+  }
+  .group-row > .icon-button {
+    grid-column: 3;
   }
   .group-description,
   .channel-description {
@@ -2947,10 +2978,12 @@ input[type='radio'] {
     flex-wrap: wrap;
   }
 }
-@media (max-width: 380px) {
+@media (max-width: 600px) {
   .form-grid {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
   }
+}
+@media (max-width: 380px) {
   .form-actions > .button {
     flex-basis: 100%;
   }
@@ -3101,5 +3134,20 @@ input[type='radio'] {
 @media (max-width: 380px) {
   .filters select {
     flex-basis: 100%;
+  }
+}
+@media (max-width: 480px) {
+  .topbar,
+  .topbar-location {
+    gap: 8px;
+  }
+  .topbar-right {
+    gap: 0;
+  }
+  .topbar-location strong {
+    font-size: var(--text-caption);
+  }
+  .topbar-separator {
+    display: none;
   }
 }
