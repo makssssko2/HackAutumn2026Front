@@ -210,14 +210,14 @@ function connectionFor(channel: Channel) {
         <AppIcon name="plus" :size="17" />Подключить бота
       </button>
     </div>
-    <p v-if="integrations.loading.value" class="muted" role="status">
+    <p v-if="integrations.loading.value" class="muted" role="status" aria-busy="true">
       Загружаем подключения ботов…
     </p>
     <div v-else-if="integrations.error.value || bots.error.value" class="error-box" role="alert">
       Не удалось загрузить подключения ботов. Остальные каналы доступны.
       <button class="text-button" @click="integrations.reload">Повторить</button>
     </div>
-    <p v-else-if="bots.loading.value" class="muted" role="status">
+    <p v-else-if="bots.loading.value" class="muted" role="status" aria-busy="true">
       Загружаем страницу подключений…
     </p>
     <div v-else-if="bots.rows.value.length" class="panel bot-list">
@@ -473,8 +473,14 @@ function connectionFor(channel: Channel) {
   </section>
 </template>
 <style scoped>
+.recipient-section > .section-heading {
+  margin-bottom: 24px;
+}
 .integration-section {
   margin: 30px 0 36px;
+}
+.integration-section > .section-heading {
+  padding-bottom: 20px;
 }
 .recipient-section {
   margin-bottom: 38px;

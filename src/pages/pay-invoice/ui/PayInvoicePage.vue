@@ -224,9 +224,11 @@ dd {
   font-weight: 600;
   font-size: 15px;
 }
-.recipient-submit:hover {
-  background: var(--accent-hover);
-  color: var(--accent-contrast);
+@media (hover: hover) {
+  .recipient-submit:hover {
+    background: var(--accent-hover);
+    color: var(--accent-contrast);
+  }
 }
 .recipient-footer {
   text-align: center;

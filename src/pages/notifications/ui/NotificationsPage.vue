@@ -108,8 +108,8 @@ async function retry(id: string) {
         доставки.
       </p>
     </div>
-    <button class="button secondary" @click="reload">
-      <AppIcon name="recurring" :size="17" />Обновить
+    <button class="button secondary" :disabled="loading" @click="reload">
+      <AppIcon name="recurring" :size="17" :class="{ spin: loading }" />Обновить
     </button>
   </div>
   <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>

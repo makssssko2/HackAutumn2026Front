@@ -18,7 +18,7 @@ defineEmits<{ 'update:page': [value: number]; 'update:pageSize': [value: number]
 const pages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)))
 </script>
 <template>
-  <div v-if="total" class="pagination">
+  <div v-if="pages > 1" class="pagination">
     <span class="muted"
       >{{ (page - 1) * pageSize + 1 }}–{{ Math.min(page * pageSize, total) }} из
       {{ total }} записей</span
@@ -82,7 +82,7 @@ const pages = computed(() => Math.max(1, Math.ceil(props.total / props.pageSize)
   min-width: 70px;
   min-height: 44px;
   margin: 0;
-  padding: 8px 26px 8px 10px;
+  padding: 8px 40px 8px 10px;
 }
 .icon-button {
   border: 1px solid var(--line);

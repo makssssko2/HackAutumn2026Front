@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, nextTick, onMounted, onUnmounted, ref, watch } from 'vue'
-import { RouterLink, RouterView, useRoute, useRouter } from 'vue-router'
+import { RouterLink, useRoute, useRouter } from 'vue-router'
+import PageView from './PageView.vue'
 import { useSession } from '@/entities/session'
 import { AppIcon, ThemeToggle } from '@/shared/ui'
 import { dateLabel } from '@/shared/lib'
@@ -129,7 +130,7 @@ onUnmounted(() => {
 <template>
   <div v-if="route.path === '/login' || route.meta.public" class="public-shell">
     <div class="public-theme-toolbar"><ThemeToggle /></div>
-    <RouterView />
+    <PageView />
   </div>
   <div v-else-if="session.user" class="workspace">
     <a class="skip-link" href="#main-content">К содержимому</a
@@ -249,7 +250,7 @@ onUnmounted(() => {
         </div>
       </header>
       <div v-if="logoutError" class="error-box">{{ logoutError }}</div>
-      <main id="main-content" class="main-content"><RouterView /></main>
+      <main id="main-content" class="main-content"><PageView /></main>
       <footer class="workspace-footer">
         <span>Invoice Keeper · регулярные расходы без забытых платежей</span
         ><span v-if="session.settings">{{ dateLabel(session.settings.today) }}</span>
