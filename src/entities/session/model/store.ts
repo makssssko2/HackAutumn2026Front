@@ -9,12 +9,14 @@ export interface SessionUser {
   role: 'admin' | 'user'
   active: boolean
   telegram_id: string | null
+  auth_source?: 'local' | 'oidc'
 }
 interface SessionSettings {
   today: string
   timezone: string
   telegram_configured: boolean
   smtp_configured: boolean
+  password_change_enabled?: boolean
 }
 const unauthorized = (error: unknown) =>
   error instanceof ApiError && [401, 403].includes(error.status)

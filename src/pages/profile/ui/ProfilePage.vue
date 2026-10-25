@@ -162,6 +162,10 @@ async function changePassword() {
       </form>
 
       <form
+        v-if="
+          session.user?.auth_source !== 'oidc' &&
+          session.settings?.password_change_enabled !== false
+        "
         class="panel profile-form"
         :aria-busy="changingPassword"
         @submit.prevent="changePassword"
@@ -243,6 +247,19 @@ async function changePassword() {
           </button>
         </div>
       </form>
+      <section v-else-if="session.user?.auth_source === 'oidc'" class="panel profile-form">
+        <div class="profile-section-heading">
+          <AppIcon name="shield" :size="21" />
+          <div>
+            <h2>Корпоративный вход</h2>
+            <p class="muted">
+              Паролем управляет ваш корпоративный провайдер. Измените его в корпоративной учётной
+              записи.
+            </p>
+          </div>
+        </div>
+        <p class="field-help">Выход из Invoice Keeper завершает только сеанс этого приложения.</p>
+      </section>
     </div>
   </div>
 </template>

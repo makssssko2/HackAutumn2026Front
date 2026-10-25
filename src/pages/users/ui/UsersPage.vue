@@ -18,7 +18,9 @@ const editing = ref<string | null>(null),
   busy = ref(false),
   operationError = ref('')
 const form = reactive({ login: '', name: '', password: '' })
+const corporate = ref(false)
 function open(user?: SessionUser) {
+  corporate.value = user?.auth_source === 'oidc'
   editing.value = user?.id || null
   form.login = user?.login || ''
   form.name = user?.name || ''
@@ -34,7 +36,10 @@ async function submit() {
       method: editing.value ? 'PATCH' : 'POST',
       body: jsonBody(
         editing.value
-          ? { name: form.name, ...(form.password ? { password: form.password } : {}) }
+          ? {
+              name: form.name,
+              ...(!corporate.value && form.password ? { password: form.password } : {}),
+            }
           : form,
       ),
     })
@@ -97,7 +102,7 @@ async function remove(user: SessionUser) {
           pattern="[a-zA-Z0-9_.@\-]+"
           :disabled="!!editing"
           autocomplete="off" /></label
-      ><label
+      ><label v-if="!corporate"
         >{{ editing ? 'Новый пароль (необязательно)' : 'Пароль'
         }}<input
           v-model="form.password"
@@ -107,6 +112,9 @@ async function remove(user: SessionUser) {
           autocomplete="new-password"
       /></label>
     </div>
+    <p v-if="corporate" class="field-help">
+      Корпоративная учётная запись: паролем управляет провайдер входа.
+    </p>
     <p class="field-help">
       Запись участника не дает доступа в админку. Участники подтверждают оплату и получают чек из
       уведомлений.

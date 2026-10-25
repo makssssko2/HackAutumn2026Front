@@ -22,8 +22,29 @@ import ConnectionForm from './ConnectionForm.vue'
 import ChannelForm from './ChannelForm.vue'
 import IntegrationHelp from './IntegrationHelp.vue'
 import LegacyChannelHelp from './LegacyChannelHelp.vue'
+import OidcSettings from './OidcSettings.vue'
 
 const session = useSession()
+const settingsTab = ref('channels')
+const settingsTabs = [
+  ['channels', 'Каналы'],
+  ['integrations', 'Интеграции'],
+] as const
+const tablist = ref<HTMLElement | null>(null)
+async function moveTab(event: KeyboardEvent) {
+  if (!['ArrowLeft', 'ArrowRight', 'Home', 'End'].includes(event.key)) return
+  event.preventDefault()
+  settingsTab.value =
+    event.key === 'Home'
+      ? 'channels'
+      : event.key === 'End'
+        ? 'integrations'
+        : settingsTab.value === 'channels'
+          ? 'integrations'
+          : 'channels'
+  await nextTick()
+  tablist.value?.querySelector<HTMLButtonElement>('[aria-selected="true"]')?.focus()
+}
 const {
   rows: channels,
   total,
@@ -181,298 +202,355 @@ function connectionFor(channel: Channel) {
   <div class="page-heading">
     <div>
       <h1>Подключения</h1>
-      <p>Подключите бота один раз и выберите чаты, в которые будут приходить счета.</p>
+      <p>Настройте доставку счетов в чаты и корпоративный вход команды.</p>
     </div>
-    <button ref="addChannelButton" class="button" @click="openChannel()">
+    <button
+      v-if="settingsTab === 'channels'"
+      ref="addChannelButton"
+      class="button"
+      @click="openChannel()"
+    >
       <AppIcon name="plus" :size="18" />Добавить канал
     </button>
   </div>
-  <div v-if="message" class="success-box" role="status">
-    {{ message }}
-    <RouterLink v-if="message.startsWith('Тест')" to="/notifications">Открыть журнал</RouterLink>
+  <div
+    ref="tablist"
+    class="tabs settings-tabs"
+    role="tablist"
+    aria-label="Разделы подключений"
+    @keydown="moveTab"
+  >
+    <button
+      v-for="[value, label] in settingsTabs"
+      :id="`settings-tab-${value}`"
+      :key="value"
+      type="button"
+      role="tab"
+      :class="{ selected: settingsTab === value }"
+      :aria-selected="settingsTab === value"
+      :aria-controls="`settings-panel-${value}`"
+      :tabindex="settingsTab === value ? 0 : -1"
+      @click="settingsTab = value"
+    >
+      {{ label }}
+    </button>
   </div>
-  <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
-  <section class="integration-section" aria-labelledby="integration-title">
-    <div class="section-heading">
-      <div>
-        <h2 id="integration-title">Боты и серверы</h2>
-        <p>VK Teams, Mattermost и Битрикс24. Одно подключение — несколько чатов-получателей.</p>
-      </div>
-      <button
-        class="button secondary"
-        :disabled="
-          integrations.loading.value ||
-          !!integrations.error.value ||
-          !integrations.data.value.providers.length
-        "
-        @click="openConnection()"
-      >
-        <AppIcon name="plus" :size="17" />Подключить бота
-      </button>
+  <div
+    v-show="settingsTab === 'channels'"
+    id="settings-panel-channels"
+    role="tabpanel"
+    aria-labelledby="settings-tab-channels"
+    tabindex="0"
+  >
+    <div v-if="message" class="success-box" role="status">
+      {{ message }}
+      <RouterLink v-if="message.startsWith('Тест')" to="/notifications">Открыть журнал</RouterLink>
     </div>
-    <p v-if="integrations.loading.value" class="muted" role="status" aria-busy="true">
-      Загружаем подключения ботов…
-    </p>
-    <div v-else-if="integrations.error.value || bots.error.value" class="error-box" role="alert">
-      Не удалось загрузить подключения ботов. Остальные каналы доступны.
-      <button class="text-button" @click="integrations.reload">Повторить</button>
-    </div>
-    <p v-else-if="bots.loading.value" class="muted" role="status" aria-busy="true">
-      Загружаем страницу подключений…
-    </p>
-    <div v-else-if="bots.rows.value.length" class="panel bot-list">
-      <article v-for="connection in bots.rows.value" :key="connection.id" class="bot-row">
-        <AppIcon :name="connection.provider" :size="24" />
-        <div class="bot-description">
-          <h3>{{ connection.name }}</h3>
-          <p>{{ channelLabels[connection.provider] }} · {{ connection.base_url }}</p>
-          <small v-if="connection.last_checked_at"
-            >Проверка:
-            {{
-              dateLabel(connection.last_checked_at, {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            }}</small
-          ><small v-if="connection.last_event_at"
-            >Последнее событие:
-            {{
-              dateLabel(connection.last_event_at, {
-                day: 'numeric',
-                month: 'short',
-                hour: '2-digit',
-                minute: '2-digit',
-              })
-            }}</small
-          >
-        </div>
-        <span
-          class="status"
-          :class="
-            !connection.active
-              ? 'cancelled'
-              : connectionReady(connection)
-                ? 'paid'
-                : connection.health_status === 'error'
-                  ? 'overdue'
-                  : 'unpaid'
-          "
-          >{{ connectionLabel(connection) }}</span
-        >
-        <div class="bot-actions">
-          <button
-            class="text-button"
-            :disabled="!!busy || !connection.active"
-            @click="validate(connection)"
-          >
-            {{
-              busy === connection.id
-                ? 'Подождите…'
-                : connection.provider === 'bitrix24'
-                  ? 'Проверить доступ'
-                  : 'Проверить бота'
-            }}
-          </button>
-          <button
-            class="text-button"
-            :disabled="!!busy"
-            @click="
-              openConnection(
-                connection,
-                connection.provider === 'bitrix24' &&
-                  connection.health_status === 'healthy' &&
-                  !connectionReady(connection),
-              )
-            "
-          >
-            {{
-              connection.provider === 'bitrix24' &&
-              connection.health_status === 'healthy' &&
-              !connectionReady(connection)
-                ? 'Завершить регистрацию'
-                : 'Настроить'
-            }}
-          </button>
-          <button
-            class="button secondary small"
-            :disabled="!!busy || !connectionReady(connection)"
-            @click="openChannel(connection)"
-          >
-            Добавить чат
-          </button>
-          <button class="text-button" :disabled="!!busy" @click="toggleConnection(connection)">
-            {{ connection.active ? 'Отключить бота' : 'Включить бота' }}
-          </button>
-        </div>
-      </article>
-    </div>
-    <p v-else class="integration-empty">
-      Ботов пока нет. Подключите VK Teams, Mattermost или Битрикс24, чтобы команда подтверждала
-      оплату прямо в чате.
-    </p>
-    <Pagination
-      v-if="!integrations.error.value && !bots.error.value"
-      v-model:page="bots.page.value"
-      v-model:page-size="bots.pageSize.value"
-      :total="bots.total.value"
-      :loading="bots.loading.value"
-      label="Страницы подключений ботов"
-    />
-    <ConnectionForm
-      v-if="connectionForm"
-      :key="editedConnection?.id || 'new'"
-      :connection="editedConnection"
-      :verify-only="verifyOnly"
-      :providers="integrations.data.value.providers"
-      @close="closeForm"
-      @saved="savedConnection"
-      @chat="openChannel"
-    />
-  </section>
-  <section class="recipient-section" aria-labelledby="recipient-title">
-    <div class="section-heading">
-      <div>
-        <h2 id="recipient-title">Каналы-получатели</h2>
-        <p>Чаты, почта и внешние сервисы. Выбираются при выставлении счёта и в группах рассылки.</p>
-      </div>
-      <button class="text-button" :disabled="loading" @click="reload">Обновить список</button>
-    </div>
-    <ChannelForm
-      v-if="channelForm"
-      :key="`${editedChannel?.id || 'new'}-${selectedConnection?.id || ''}`"
-      :channel="editedChannel"
-      :connection="selectedConnection"
-      :connections="integrations.data.value.connections"
-      :providers="integrations.data.value.providers"
-      @close="closeForm"
-      @saved="savedChannel"
-      @connect="openConnection()"
-    />
-    <section v-if="telegramLink" class="panel telegram-link-panel">
+    <p v-if="operationError" class="error-box" role="alert">{{ operationError }}</p>
+    <section class="integration-section" aria-labelledby="integration-title">
       <div class="section-heading">
-        <h3>Подключить «{{ telegramLink.channel }}»</h3>
+        <div>
+          <h2 id="integration-title">Боты и серверы</h2>
+          <p>VK Teams, Mattermost и Битрикс24. Одно подключение — несколько чатов-получателей.</p>
+        </div>
         <button
-          class="icon-button"
-          aria-label="Скрыть подключение Telegram"
-          @click="telegramLink = null"
+          class="button secondary"
+          :disabled="
+            integrations.loading.value ||
+            !!integrations.error.value ||
+            !integrations.data.value.providers.length
+          "
+          @click="openConnection()"
         >
-          <AppIcon name="close" />
+          <AppIcon name="plus" :size="17" />Подключить бота
         </button>
       </div>
-      <p>
-        Выберите группу, где вы администратор, и подтвердите добавление бота. Ссылка одноразовая и
-        действует 10 минут.
+      <p v-if="integrations.loading.value" class="muted" role="status" aria-busy="true">
+        Загружаем подключения ботов…
       </p>
-      <a :href="telegramLink.url" class="button" target="_blank" rel="noopener noreferrer"
-        >Выбрать группу в Telegram</a
-      >
-      <button class="button secondary" @click="reload">Проверить привязку</button>
-    </section>
-    <AsyncState :loading="loading" :error="error" @retry="reload">
-      <section v-if="channels.length" class="panel channel-list">
-        <article v-for="channel in channels" :key="channel.id" class="channel-row">
-          <span class="channel-symbol"><AppIcon :name="channel.kind" :size="24" /></span>
-          <div class="channel-description">
-            <h3>{{ channel.name }}</h3>
-            <p>
-              {{ channelLabels[channel.kind] || channel.kind
-              }}<template v-if="isIntegration(channel.kind)">
-                · {{ connectionFor(channel)?.name || 'Подключение недоступно' }} ·
-                {{ channel.remote_chat_id || 'Чат не указан' }}</template
-              ><template v-else-if="channel.kind === 'telegram' && channel.config.chat_id">
-                · Чат {{ channel.config.chat_id }}</template
-              ><template v-else-if="channel.kind === 'email'">
-                · {{ channel.config.email }}</template
-              ><template v-else-if="channel.kind === 'webhook'">
-                · {{ channel.config.url }}</template
-              >
-            </p>
-            <small
-              v-if="channel.kind === 'telegram' && !session.settings?.telegram_configured"
-              class="warning-text"
-              >Токен Telegram-бота пока не задан</small
-            ><small
-              v-if="channel.kind === 'email' && !session.settings?.smtp_configured"
-              class="warning-text"
-              >SMTP пока не настроен</small
+      <div v-else-if="integrations.error.value || bots.error.value" class="error-box" role="alert">
+        Не удалось загрузить подключения ботов. Остальные каналы доступны.
+        <button class="text-button" @click="integrations.reload">Повторить</button>
+      </div>
+      <p v-else-if="bots.loading.value" class="muted" role="status" aria-busy="true">
+        Загружаем страницу подключений…
+      </p>
+      <div v-else-if="bots.rows.value.length" class="panel bot-list">
+        <article v-for="connection in bots.rows.value" :key="connection.id" class="bot-row">
+          <AppIcon :name="connection.provider" :size="24" />
+          <div class="bot-description">
+            <h3>{{ connection.name }}</h3>
+            <p>{{ channelLabels[connection.provider] }} · {{ connection.base_url }}</p>
+            <small v-if="connection.last_checked_at"
+              >Проверка:
+              {{
+                dateLabel(connection.last_checked_at, {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}</small
+            ><small v-if="connection.last_event_at"
+              >Последнее событие:
+              {{
+                dateLabel(connection.last_event_at, {
+                  day: 'numeric',
+                  month: 'short',
+                  hour: '2-digit',
+                  minute: '2-digit',
+                })
+              }}</small
             >
           </div>
-          <ChannelState :channel="channel" :connections="connectionList" />
-          <div class="channel-actions">
-            <button
-              v-if="channel.kind === 'telegram'"
-              class="button small secondary"
-              :disabled="!!busy"
-              @click="connectTelegram(channel)"
-            >
-              {{ channel.config.chat_id ? 'Перепривязать' : 'Подключить чат' }}
-            </button>
-            <button
-              v-if="channel.kind !== 'inapp'"
-              class="text-button"
-              :disabled="!!busy"
-              @click="openChannel(undefined, channel)"
-            >
-              Изменить
-            </button>
-            <button
-              class="text-button"
-              :disabled="!!busy || !!channelWarning(channel, connectionList)"
-              @click="testChannel = channel"
-            >
-              Тест
-            </button>
-            <button
-              v-if="channel.kind !== 'inapp'"
-              class="text-button"
-              :disabled="!!busy"
-              @click="toggleChannel(channel)"
-            >
-              {{ channel.active ? 'Отключить' : 'Включить' }}
-            </button>
-          </div>
-          <div
-            v-if="testChannel?.id === channel.id"
-            class="test-confirmation"
-            role="group"
-            :aria-label="`Тест канала ${channel.name}`"
+          <span
+            class="status"
+            :class="
+              !connection.active
+                ? 'cancelled'
+                : connectionReady(connection)
+                  ? 'paid'
+                  : connection.health_status === 'error'
+                    ? 'overdue'
+                    : 'unpaid'
+            "
+            >{{ connectionLabel(connection) }}</span
           >
-            <p>
-              Отправить тест в «{{ channel.name }}»? Сервер использует один из сохранённых счетов. В
-              сообщении могут быть данные счёта и кнопка демонстрационной оплаты.
-            </p>
-            <div class="test-actions">
-              <button class="button secondary small" :disabled="!!busy" @click="sendTest(channel)">
-                Отправить тест</button
-              ><button class="text-button" :disabled="!!busy" @click="testChannel = null">
-                Отмена
-              </button>
-            </div>
+          <div class="bot-actions">
+            <button
+              class="text-button"
+              :disabled="!!busy || !connection.active"
+              @click="validate(connection)"
+            >
+              {{
+                busy === connection.id
+                  ? 'Подождите…'
+                  : connection.provider === 'bitrix24'
+                    ? 'Проверить доступ'
+                    : 'Проверить бота'
+              }}
+            </button>
+            <button
+              class="text-button"
+              :disabled="!!busy"
+              @click="
+                openConnection(
+                  connection,
+                  connection.provider === 'bitrix24' &&
+                    connection.health_status === 'healthy' &&
+                    !connectionReady(connection),
+                )
+              "
+            >
+              {{
+                connection.provider === 'bitrix24' &&
+                connection.health_status === 'healthy' &&
+                !connectionReady(connection)
+                  ? 'Завершить регистрацию'
+                  : 'Настроить'
+              }}
+            </button>
+            <button
+              class="button secondary small"
+              :disabled="!!busy || !connectionReady(connection)"
+              @click="openChannel(connection)"
+            >
+              Добавить чат
+            </button>
+            <button class="text-button" :disabled="!!busy" @click="toggleConnection(connection)">
+              {{ connection.active ? 'Отключить бота' : 'Включить бота' }}
+            </button>
           </div>
         </article>
-      </section>
-      <p v-else class="integration-empty">Добавьте первый канал, чтобы отправлять счета команде.</p>
+      </div>
+      <p v-else class="integration-empty">
+        Ботов пока нет. Подключите VK Teams, Mattermost или Битрикс24, чтобы команда подтверждала
+        оплату прямо в чате.
+      </p>
       <Pagination
-        v-model:page="page"
-        v-model:page-size="pageSize"
-        :total="total"
-        :loading="loading"
-        label="Страницы каналов-получателей"
+        v-if="!integrations.error.value && !bots.error.value"
+        v-model:page="bots.page.value"
+        v-model:page-size="bots.pageSize.value"
+        :total="bots.total.value"
+        :loading="bots.loading.value"
+        label="Страницы подключений ботов"
       />
-    </AsyncState>
-  </section>
-  <section class="connection-guides" aria-labelledby="connection-guides-title">
-    <h2 id="connection-guides-title">Инструкции подключения</h2>
-    <IntegrationHelp /><LegacyChannelHelp />
-    <p class="field-help">
-      Часовой пояс: {{ session.settings?.timezone }}. Настройки Telegram и отправителя SMTP задаются
-      администратором сервера.
-    </p>
-  </section>
+      <ConnectionForm
+        v-if="connectionForm"
+        :key="editedConnection?.id || 'new'"
+        :connection="editedConnection"
+        :verify-only="verifyOnly"
+        :providers="integrations.data.value.providers"
+        @close="closeForm"
+        @saved="savedConnection"
+        @chat="openChannel"
+      />
+    </section>
+    <section class="recipient-section" aria-labelledby="recipient-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="recipient-title">Каналы-получатели</h2>
+          <p>
+            Чаты, почта и внешние сервисы. Выбираются при выставлении счёта и в группах рассылки.
+          </p>
+        </div>
+        <button class="text-button" :disabled="loading" @click="reload">Обновить список</button>
+      </div>
+      <ChannelForm
+        v-if="channelForm"
+        :key="`${editedChannel?.id || 'new'}-${selectedConnection?.id || ''}`"
+        :channel="editedChannel"
+        :connection="selectedConnection"
+        :connections="integrations.data.value.connections"
+        :providers="integrations.data.value.providers"
+        @close="closeForm"
+        @saved="savedChannel"
+        @connect="openConnection()"
+      />
+      <section v-if="telegramLink" class="panel telegram-link-panel">
+        <div class="section-heading">
+          <h3>Подключить «{{ telegramLink.channel }}»</h3>
+          <button
+            class="icon-button"
+            aria-label="Скрыть подключение Telegram"
+            @click="telegramLink = null"
+          >
+            <AppIcon name="close" />
+          </button>
+        </div>
+        <p>
+          Выберите группу, где вы администратор, и подтвердите добавление бота. Ссылка одноразовая и
+          действует 10 минут.
+        </p>
+        <a :href="telegramLink.url" class="button" target="_blank" rel="noopener noreferrer"
+          >Выбрать группу в Telegram</a
+        >
+        <button class="button secondary" @click="reload">Проверить привязку</button>
+      </section>
+      <AsyncState :loading="loading" :error="error" @retry="reload">
+        <section v-if="channels.length" class="panel channel-list">
+          <article v-for="channel in channels" :key="channel.id" class="channel-row">
+            <span class="channel-symbol"><AppIcon :name="channel.kind" :size="24" /></span>
+            <div class="channel-description">
+              <h3>{{ channel.name }}</h3>
+              <p>
+                {{ channelLabels[channel.kind] || channel.kind
+                }}<template v-if="isIntegration(channel.kind)">
+                  · {{ connectionFor(channel)?.name || 'Подключение недоступно' }} ·
+                  {{ channel.remote_chat_id || 'Чат не указан' }}</template
+                ><template v-else-if="channel.kind === 'telegram' && channel.config.chat_id">
+                  · Чат {{ channel.config.chat_id }}</template
+                ><template v-else-if="channel.kind === 'email'">
+                  · {{ channel.config.email }}</template
+                ><template v-else-if="channel.kind === 'webhook'">
+                  · {{ channel.config.url }}</template
+                >
+              </p>
+              <small
+                v-if="channel.kind === 'telegram' && !session.settings?.telegram_configured"
+                class="warning-text"
+                >Токен Telegram-бота пока не задан</small
+              ><small
+                v-if="channel.kind === 'email' && !session.settings?.smtp_configured"
+                class="warning-text"
+                >SMTP пока не настроен</small
+              >
+            </div>
+            <ChannelState :channel="channel" :connections="connectionList" />
+            <div class="channel-actions">
+              <button
+                v-if="channel.kind === 'telegram'"
+                class="button small secondary"
+                :disabled="!!busy"
+                @click="connectTelegram(channel)"
+              >
+                {{ channel.config.chat_id ? 'Перепривязать' : 'Подключить чат' }}
+              </button>
+              <button
+                v-if="channel.kind !== 'inapp'"
+                class="text-button"
+                :disabled="!!busy"
+                @click="openChannel(undefined, channel)"
+              >
+                Изменить
+              </button>
+              <button
+                class="text-button"
+                :disabled="!!busy || !!channelWarning(channel, connectionList)"
+                @click="testChannel = channel"
+              >
+                Тест
+              </button>
+              <button
+                v-if="channel.kind !== 'inapp'"
+                class="text-button"
+                :disabled="!!busy"
+                @click="toggleChannel(channel)"
+              >
+                {{ channel.active ? 'Отключить' : 'Включить' }}
+              </button>
+            </div>
+            <div
+              v-if="testChannel?.id === channel.id"
+              class="test-confirmation"
+              role="group"
+              :aria-label="`Тест канала ${channel.name}`"
+            >
+              <p>
+                Отправить тест в «{{ channel.name }}»? Сервер использует один из сохранённых счетов.
+                В сообщении могут быть данные счёта и кнопка демонстрационной оплаты.
+              </p>
+              <div class="test-actions">
+                <button
+                  class="button secondary small"
+                  :disabled="!!busy"
+                  @click="sendTest(channel)"
+                >
+                  Отправить тест</button
+                ><button class="text-button" :disabled="!!busy" @click="testChannel = null">
+                  Отмена
+                </button>
+              </div>
+            </div>
+          </article>
+        </section>
+        <p v-else class="integration-empty">
+          Добавьте первый канал, чтобы отправлять счета команде.
+        </p>
+        <Pagination
+          v-model:page="page"
+          v-model:page-size="pageSize"
+          :total="total"
+          :loading="loading"
+          label="Страницы каналов-получателей"
+        />
+      </AsyncState>
+    </section>
+    <section class="connection-guides" aria-labelledby="connection-guides-title">
+      <h2 id="connection-guides-title">Инструкции подключения</h2>
+      <IntegrationHelp /><LegacyChannelHelp />
+      <p class="field-help">
+        Часовой пояс: {{ session.settings?.timezone }}. Настройки Telegram и отправителя SMTP
+        задаются администратором сервера.
+      </p>
+    </section>
+  </div>
+  <div
+    v-show="settingsTab === 'integrations'"
+    id="settings-panel-integrations"
+    role="tabpanel"
+    aria-labelledby="settings-tab-integrations"
+    tabindex="0"
+  >
+    <OidcSettings v-if="settingsTab === 'integrations'" />
+  </div>
 </template>
 <style scoped>
+.settings-tabs {
+  padding-inline: 0;
+  margin-bottom: 24px;
+  overflow-x: auto;
+}
 .recipient-section > .section-heading {
   margin-bottom: 24px;
 }

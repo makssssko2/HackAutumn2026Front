@@ -2,6 +2,8 @@
 import { ref } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useSession } from '@/entities/session'
+import { oidcApi, oidcLoginUrl } from '@/entities/oidc'
+import { useAsyncData } from '@/shared/lib'
 import { AppIcon } from '@/shared/ui'
 const session = useSession()
 const router = useRouter()
@@ -10,6 +12,12 @@ const login = ref('')
 const password = ref('')
 const busy = ref(false)
 const error = ref('')
+const {
+  data: provider,
+  loading: providerLoading,
+  error: providerError,
+  reload: reloadProvider,
+} = useAsyncData(oidcApi.publicProvider, { enabled: false, name: '' })
 async function submit() {
   busy.value = true
   error.value = ''
@@ -53,6 +61,10 @@ async function submit() {
         <p v-if="route.query.password_changed === '1'" class="profile-login-success" role="status">
           Пароль изменён. Все сеансы завершены — войдите с новым паролем.
         </p>
+        <p v-if="route.query.oidc_error === '1'" class="error-box" role="alert">
+          Не удалось выполнить корпоративный вход. Повторите попытку или обратитесь к
+          администратору.
+        </p>
         <label
           >Логин<input
             v-model="login"
@@ -75,7 +87,34 @@ async function submit() {
           {{ busy ? 'Входим…' : 'Войти в пространство'
           }}<AppIcon :name="busy ? 'loading' : 'arrow'" :class="{ spin: busy }" :size="18" />
         </button>
+        <a
+          v-if="provider.enabled && !providerError && !providerLoading"
+          class="button secondary oidc-login"
+          :href="oidcLoginUrl"
+          ><span>{{ provider.name }}</span
+          ><AppIcon name="shield" :size="18"
+        /></a>
+        <p v-if="providerLoading" class="field-help" role="status">Проверяем корпоративный вход…</p>
+        <div v-else-if="providerError" class="field-help" role="status">
+          Корпоративный вход временно недоступен.
+          <button class="text-button" type="button" @click="reloadProvider">
+            Повторить проверку
+          </button>
+        </div>
       </form>
     </section>
   </main>
 </template>
+
+<style scoped>
+.oidc-login {
+  white-space: normal;
+  & span {
+    min-width: 0;
+    overflow-wrap: anywhere;
+  }
+  & svg {
+    flex: none;
+  }
+}
+</style>
