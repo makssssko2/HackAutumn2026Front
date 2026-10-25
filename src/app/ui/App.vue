@@ -73,6 +73,7 @@ const logoutError = ref('')
 const primary = computed(() => [
   ['/', 'overview', 'Обзор'],
   ['/payments', 'payments', session.isAdmin ? 'Выставленные счета' : 'Счета'],
+  ...(session.isAdmin ? [['/b2b', 'receipt', 'B2B · Входящие счета']] : []),
   ['/recurring', 'recurring', 'Регулярные платежи'],
   ['/calendar', 'calendar', 'Календарь'],
   ['/budget', 'budget', 'Бюджет'],

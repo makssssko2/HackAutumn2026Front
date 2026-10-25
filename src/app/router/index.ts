@@ -24,6 +24,16 @@ export const router = createRouter({
     },
     { path: '/payments', component: () => import('@/pages/payments'), meta: { title: 'Счета' } },
     {
+      path: '/b2b',
+      component: () => import('@/pages/b2b'),
+      meta: { title: 'B2B · Входящие счета', admin: true },
+    },
+    {
+      path: '/b2b/invoices/:id',
+      component: () => import('@/pages/b2b').then((module) => module.B2BInvoicePage),
+      meta: { title: 'B2B · Карточка счёта', admin: true },
+    },
+    {
       path: '/payments/new',
       component: () => import('@/pages/create-payment'),
       meta: { title: 'Выставить счет', admin: true },
