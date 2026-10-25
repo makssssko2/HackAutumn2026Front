@@ -235,7 +235,11 @@ async function submit() {
           Группы можно добавить в разделе «Группы рассылки».
         </p>
       </fieldset>
-      <section class="recipient-preview" aria-labelledby="recipient-preview-title">
+      <section
+        class="recipient-preview"
+        aria-labelledby="recipient-preview-title"
+        :aria-busy="recipientsLoading"
+      >
         <div class="section-heading">
           <h3 id="recipient-preview-title">Получатели этого счета</h3>
           <span class="muted">{{

@@ -94,7 +94,7 @@ function move(delta: number) {
   <div class="page-heading">
     <div>
       <h1>Календарь оплат</h1>
-      <p>Планируйте расходы по датам, не смешивая валюты.</p>
+      <p>Планируйте расходы по датам.</p>
     </div>
     <div class="calendar-controls">
       <button class="icon-button" aria-label="Предыдущий месяц" @click="move(-1)">

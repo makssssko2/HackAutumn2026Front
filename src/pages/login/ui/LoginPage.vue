@@ -45,7 +45,6 @@ async function submit() {
           ><span><AppIcon name="check" :size="18" />Прозрачная история для всей команды</span>
         </div>
       </div>
-      <small>Invoice Keeper · демонстрационная версия</small>
     </section>
     <section class="login-form-section">
       <form class="login-form" @submit.prevent="submit">
@@ -76,10 +75,6 @@ async function submit() {
           {{ busy ? 'Входим…' : 'Войти в пространство'
           }}<AppIcon :name="busy ? 'loading' : 'arrow'" :class="{ spin: busy }" :size="18" />
         </button>
-        <p class="login-hint">
-          Администратор выставляет счета, участники подтверждают оплату в карточке счета. Кнопки в
-          Telegram и email работают и без веб-аккаунта.
-        </p>
       </form>
     </section>
   </main>
