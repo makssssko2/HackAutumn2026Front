@@ -505,6 +505,7 @@ function connectionFor(channel: Channel) {
 .bot-description h3,
 .channel-description h3 {
   font-size: 15px;
+  overflow-wrap: anywhere;
 }
 .bot-description p {
   margin-top: 5px;
