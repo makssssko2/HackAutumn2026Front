@@ -44,12 +44,15 @@ const {
   reload: reloadDetail,
 } = useAsyncData(
   async (signal) => {
-    const detail = await paymentApi.detail(String(route.params.id), signal)
+    const id = route.params.id
+    // The route can lose its id before this page's scope is disposed.
+    if (typeof id !== 'string' || !id) return { detail: null, active: false }
+    const detail = await paymentApi.detail(id, signal)
     return { detail, active: detail.payment_active }
   },
   { detail: null as OccurrenceDetail | null, active: false },
 )
-const relatedEnabled = () => data.value.detail?.id === route.params.id
+const relatedEnabled = () => !!data.value.detail && data.value.detail.id === route.params.id
 const history = usePagedList<HistoryItem>(
   () => `/payment-occurrences/${route.params.id}/history`,
   () => ({}),
