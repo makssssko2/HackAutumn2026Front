@@ -164,7 +164,7 @@ async function changePassword() {
       <form
         v-if="
           session.user?.auth_source !== 'oidc' &&
-          session.settings?.password_change_enabled !== false
+          session.settings?.password_change_enabled === true
         "
         class="panel profile-form"
         :aria-busy="changingPassword"
