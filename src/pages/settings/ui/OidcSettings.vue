@@ -83,11 +83,11 @@ watch(expanded, (value) => {
           <legend class="oidc-legend">Подключение</legend>
           <div class="form-grid">
             <label
-              >Название кнопки входа<input
+              >Название провайдера<input
                 v-model="form.name"
                 required
                 maxlength="120"
-                placeholder="Например, Войти через компанию"
+                placeholder="Например, Keycloak"
             /></label>
             <label
               >Discovery URL<input

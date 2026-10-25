@@ -91,7 +91,7 @@ async function submit() {
           v-if="provider.enabled && !providerError && !providerLoading"
           class="button secondary oidc-login"
           :href="oidcLoginUrl"
-          ><span>{{ provider.name }}</span
+          ><span>Войти через компанию</span
           ><AppIcon name="shield" :size="18"
         /></a>
         <p v-if="providerLoading" class="field-help" role="status">Проверяем корпоративный вход…</p>
