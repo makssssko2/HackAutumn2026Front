@@ -31,10 +31,10 @@ const {
   error: choicesError,
   reload: reloadChoices,
 } = useAsyncData(
-  async () => {
+  async (signal) => {
     const [channels, connections] = await Promise.all([
-      allPages<Channel>('/channels'),
-      integrationApi.connections().catch(() => undefined),
+      allPages<Channel>('/channels', {}, signal),
+      integrationApi.connections(signal).catch(() => undefined),
     ])
     return { channels, connections }
   },

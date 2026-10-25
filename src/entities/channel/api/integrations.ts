@@ -2,8 +2,10 @@ import { api, jsonBody, allPages } from '@/shared/api'
 import type { IntegrationConnection, IntegrationProvider } from '../model/integration'
 
 export const integrationApi = {
-  providers: () => api<IntegrationProvider[]>('/integrations/providers'),
-  connections: () => allPages<IntegrationConnection>('/integrations/connections'),
+  providers: (signal?: AbortSignal) =>
+    api<IntegrationProvider[]>('/integrations/providers', { signal }),
+  connections: (signal?: AbortSignal) =>
+    allPages<IntegrationConnection>('/integrations/connections', {}, signal),
   create: (body: unknown) =>
     api<IntegrationConnection>('/integrations/connections', {
       method: 'POST',

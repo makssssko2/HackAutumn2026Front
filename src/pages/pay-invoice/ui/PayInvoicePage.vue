@@ -1,71 +1,13 @@
 <script setup lang="ts">
-import { ref, watch, computed } from 'vue'
+import { computed } from 'vue'
 import { useRoute } from 'vue-router'
-import { api, ApiError, jsonBody } from '@/shared/api'
 import { money, dateLabel } from '@/shared/lib'
 import { AppIcon } from '@/shared/ui'
+import { usePublicPayment } from '../model/usePublicPayment'
 
-interface Invoice {
-  title: string
-  description: string
-  amount: string
-  currency: string
-  due_date: string
-  paid: boolean
-  cancelled: boolean
-  paid_at: string | null
-  revision: number
-  today: string
-  has_receipt: boolean
-  overdue_days: number
-}
 const route = useRoute()
-const path = computed(() => `/public/payments/${encodeURIComponent(String(route.params.token))}`)
-const invoice = ref<Invoice | null>(null)
-const error = ref('')
-const invalidLink = ref(false)
-const loading = ref(true)
-const submitting = ref(false)
-const paidAt = ref('')
-const name = ref('')
-async function load() {
-  loading.value = true
-  invoice.value = null
-  error.value = ''
-  invalidLink.value = false
-  try {
-    invoice.value = await api<Invoice>(path.value)
-    paidAt.value = invoice.value.today
-  } catch (e) {
-    invalidLink.value = e instanceof ApiError && e.status === 404
-    error.value = (e as Error).message
-  } finally {
-    loading.value = false
-  }
-}
-async function confirm() {
-  if (!invoice.value || submitting.value) return
-  submitting.value = true
-  error.value = ''
-  try {
-    invoice.value = await api<Invoice>(`${path.value}/confirm`, {
-      method: 'POST',
-      body: jsonBody({
-        paid_at: paidAt.value,
-        name: name.value,
-        expected_revision: invoice.value.revision,
-      }),
-    })
-  } catch (e) {
-    if (e instanceof ApiError && e.status === 409) {
-      await load()
-      if (!invoice.value?.paid) error.value = e.message
-    } else error.value = (e as Error).message
-  } finally {
-    submitting.value = false
-  }
-}
-watch(path, load, { immediate: true })
+const { path, invoice, error, invalidLink, loading, submitting, paidAt, name, load, confirm } =
+  usePublicPayment(computed(() => String(route.params.token || '')))
 </script>
 
 <template>

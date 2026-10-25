@@ -13,10 +13,13 @@ export function usePagedList<T>(
     error = ref('')
   let version = 0,
     mounted = false,
+    disposed = false,
+    resettingPage = false,
     controller: AbortController | undefined
   let timer: ReturnType<typeof setTimeout> | undefined
   const endpoint = () => (typeof path === 'string' ? path : path())
   async function reload() {
+    if (disposed) return
     clearTimeout(timer)
     const current = ++version
     controller?.abort()
@@ -52,27 +55,33 @@ export function usePagedList<T>(
   watch(
     [page, pageSize, () => JSON.stringify(filters()), endpoint, () => options.enabled?.() ?? true],
     (values, previous) => {
-      if (!mounted) return
+      if (!mounted || resettingPage) return
       clearTimeout(timer)
+      // Invalidate synchronously when criteria change, before the next
+      // request/debounce starts. A response for old filters must never win.
+      ++version
+      controller?.abort()
       const changed =
         values[1] !== previous[1] || values[2] !== previous[2] || values[3] !== previous[3]
       if (changed && page.value !== 1) {
+        resettingPage = true
         page.value = 1
-        return
+        resettingPage = false
       }
       if (changed && options.debounce) {
-        ++version
-        controller?.abort()
         loading.value = true
         timer = setTimeout(reload, options.debounce)
       } else void reload()
     },
+    { flush: 'sync' },
   )
   onMounted(() => {
     mounted = true
     void reload()
   })
   onUnmounted(() => {
+    disposed = true
+    mounted = false
     ++version
     clearTimeout(timer)
     controller?.abort()

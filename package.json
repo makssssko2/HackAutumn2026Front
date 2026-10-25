@@ -7,7 +7,7 @@
     "dev": "vite --host 127.0.0.1 --configLoader native",
     "build": "vue-tsc -b && vite build --configLoader native",
     "preview": "vite preview --host 127.0.0.1 --configLoader native",
-    "check:architecture": "node scripts/check-fsd.mjs",
+    "check:architecture": "node --test scripts/check-fsd.test.mjs && node scripts/check-fsd.mjs",
     "test": "vitest run --configLoader native",
     "check": "npm run check:architecture && vue-tsc -b && vitest run --configLoader native"
   },

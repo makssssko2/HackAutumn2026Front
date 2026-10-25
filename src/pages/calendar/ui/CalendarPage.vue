@@ -8,7 +8,6 @@ import {
   dateLabel,
   money,
   currencies,
-  monthRange,
   useAsyncData,
   usePagedList,
   plural,
@@ -40,7 +39,10 @@ const {
   error,
   reload,
 } = useAsyncData(
-  () => api<{ days: CalendarDay[] }>(`/payments/calendar${queryString(calendarRange.value)}`),
+  (signal) =>
+    api<{ days: CalendarDay[] }>(`/payments/calendar${queryString(calendarRange.value)}`, {
+      signal,
+    }),
   { days: [] },
 )
 const dayLedger = usePagedList<Occurrence>('/payment-occurrences', () => ({

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { ref } from 'vue'
-import type { HistoryItem } from '@/entities/payment'
-import { actionLabel, dateLabel, usePagedList } from '@/shared/lib'
+import { actionLabel, type AuditEvent as HistoryItem } from '@/entities/audit'
+import { dateLabel, usePagedList } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 const search = ref('')
 const {

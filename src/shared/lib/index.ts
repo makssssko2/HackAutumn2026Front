@@ -1,15 +1,5 @@
-export {
-  money,
-  dateLabel,
-  dateISO,
-  monthRange,
-  currencies,
-  frequencyLabel,
-  actionLabel,
-  plural,
-} from './format'
+export { money, dateLabel, dateISO, monthRange, currencies, plural } from './format'
 export type { Currency } from './format'
 export { useAsyncData } from './useAsyncData'
-export { usePagination } from './usePagination'
 export { usePagedList } from './usePagedList'
 export { initializeTheme, useTheme } from './theme'

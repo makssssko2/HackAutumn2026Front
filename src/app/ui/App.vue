@@ -7,6 +7,13 @@ import { dateLabel } from '@/shared/lib'
 const session = useSession()
 const route = useRoute()
 const router = useRouter()
+watch(
+  () => session.user,
+  (user, previous) => {
+    if (previous && !user && !route.meta.public && route.path !== '/login')
+      void router.replace('/login')
+  },
+)
 const menuOpen = ref(false)
 const mobileQuery = window.matchMedia('(max-width: 1000px)')
 const mobile = ref(mobileQuery.matches)
@@ -95,7 +102,7 @@ async function logout() {
 }
 function expired() {
   if (route.meta.public) return
-  session.user = null
+  session.clear()
   router.push('/login')
 }
 async function syncSession() {

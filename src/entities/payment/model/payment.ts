@@ -15,3 +15,10 @@ export function reminderWindow(
   const now = Date.parse(`${today}T00:00:00Z`)
   return Number.isFinite(due) && Number.isFinite(now) && due <= now + 3 * 86400000
 }
+
+export const frequencyLabel: Record<string, string> = {
+  monthly: 'Ежемесячно',
+  quarterly: 'Раз в квартал',
+  yearly: 'Ежегодно',
+  weekly: 'Еженедельно',
+}

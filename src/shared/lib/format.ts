@@ -21,6 +21,7 @@ export function money(value: string | number, currency: string) {
 export function dateLabel(value: string | null, options?: Intl.DateTimeFormatOptions) {
   if (!value) return '—'
   const parsed = /^\d{4}-\d{2}-\d{2}$/.test(value) ? new Date(`${value}T12:00:00`) : new Date(value)
+  if (!Number.isFinite(parsed.getTime())) return '—'
   return new Intl.DateTimeFormat(
     'ru-RU',
     options || { day: 'numeric', month: 'short', year: 'numeric' },
@@ -32,37 +33,4 @@ export function dateISO(value = new Date()) {
 export function monthRange(value: string) {
   const [year, month] = value.split('-').map(Number)
   return { date_from: `${value}-01`, date_to: dateISO(new Date(year!, month!, 0)) }
-}
-export const frequencyLabel: Record<string, string> = {
-  monthly: 'Ежемесячно',
-  quarterly: 'Раз в квартал',
-  yearly: 'Ежегодно',
-  weekly: 'Еженедельно',
-}
-export const actionLabel: Record<string, string> = {
-  'auth.login': 'Вход в систему',
-  'auth.logout': 'Выход из системы',
-  'auth.failed': 'Неудачная попытка входа',
-  'auth.denied': 'Отказ во входе: панель только для администратора',
-  'payment.created': 'Создан регулярный платеж',
-  'payment.stopped': 'Регулярный платеж прекращен',
-  'payment.one_time_created': 'Создан разовый платеж',
-  'payment.one_time_cancelled': 'Разовый платеж отменен',
-  'notification.reminder_requested': 'Запрошено напоминание по счету',
-  'occurrence.paid': 'Оплата подтверждена',
-  'occurrence.unpaid': 'Отметка оплаты отменена',
-  'user.created': 'Создан пользователь',
-  'user.updated': 'Изменен пользователь',
-  'user.deleted': 'Удален пользователь',
-  'channel.created': 'Подключен канал',
-  'channel.updated': 'Изменен канал',
-  'channel.connected': 'Привязан Telegram-чат',
-  'channel.link_requested': 'Создан код подключения',
-  'channel.test': 'Тестовая отправка',
-  'group.created': 'Создана группа',
-  'group.updated': 'Изменена группа',
-  'group.deleted': 'Удалена группа',
-  'attachment.created': 'Прикреплен файл',
-  'attachment.linked': 'Прикреплена ссылка',
-  'notification.retry': 'Повторная отправка уведомления',
 }

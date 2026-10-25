@@ -25,12 +25,18 @@ export async function readPage<T>(
   return result
 }
 /** Complete lookups for recipient selection; each request is bounded to 100 rows. */
-export async function allPages<T>(path: string, filters: ListFilters = {}): Promise<T[]> {
+export async function allPages<T>(
+  path: string,
+  filters: ListFilters = {},
+  signal?: AbortSignal,
+): Promise<T[]> {
   const rows: T[] = []
   for (let page = 1; ; page++) {
-    const result = await readPage<T>(path, { ...filters, page, page_size: 100 })
+    signal?.throwIfAborted()
+    const result = await readPage<T>(path, { ...filters, page, page_size: 100 }, signal)
     rows.push(...result.items)
     if (rows.length >= result.total) return rows
-    if (!result.items.length) throw new Error('Справочник получен не полностью. Обновите список перед выбором получателей.')
+    if (!result.items.length)
+      throw new Error('Справочник получен не полностью. Обновите список перед выбором получателей.')
   }
 }

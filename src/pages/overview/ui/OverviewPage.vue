@@ -20,19 +20,31 @@ const currentDate = session.settings?.today || dateISO()
 const month = ref(currentDate.slice(0, 7))
 const tab = ref('all')
 const { data, loading, error, reload } = useAsyncData(
-  async () => {
+  async (signal) => {
     const range = monthRange(month.value)
     const [summary, unpaid, paid, overdue, next] = await Promise.all([
-      paymentApi.summary(monthRange(month.value)),
-      readPage<Occurrence>('/payment-occurrences', { ...range, status: 'unpaid', page_size: 1 }),
-      readPage<Occurrence>('/payment-occurrences', { ...range, status: 'paid', page_size: 1 }),
-      readPage<Occurrence>('/payment-occurrences', { status: 'overdue', page_size: 1 }),
-      readPage<Occurrence>('/payment-occurrences', {
-        ...range,
-        date_from: range.date_from! > currentDate ? range.date_from : currentDate,
-        status: 'unpaid',
-        page_size: 1,
-      }),
+      paymentApi.summary(monthRange(month.value), signal),
+      readPage<Occurrence>(
+        '/payment-occurrences',
+        { ...range, status: 'unpaid', page_size: 1 },
+        signal,
+      ),
+      readPage<Occurrence>(
+        '/payment-occurrences',
+        { ...range, status: 'paid', page_size: 1 },
+        signal,
+      ),
+      readPage<Occurrence>('/payment-occurrences', { status: 'overdue', page_size: 1 }, signal),
+      readPage<Occurrence>(
+        '/payment-occurrences',
+        {
+          ...range,
+          date_from: range.date_from! > currentDate ? range.date_from : currentDate,
+          status: 'unpaid',
+          page_size: 1,
+        },
+        signal,
+      ),
     ])
     return {
       summary,

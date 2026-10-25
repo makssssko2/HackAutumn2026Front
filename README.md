@@ -6,6 +6,9 @@
 
 Этот репозиторий содержит клиентскую часть на Vue. API, база данных, доставка уведомлений, боты и MCP находятся в отдельном репозитории сервера.
 
+Архитектура и границы FSD описаны в [отдельном документе](docs/frontend-architecture.md).
+Результаты локального аудита и исправления: [25 октября 2026](docs/architecture-audit-2026-10-25.md).
+
 - [Веб-приложение](https://aezainvoice.xxxmgxxx.com).
 - [Репозиторий фронтенда](https://github.com/makssssko2/HackAutumn2026Front).
 - [Репозиторий сервера](https://github.com/makssssko2/HackAutumn2026Back).

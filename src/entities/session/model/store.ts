@@ -10,57 +10,103 @@ export interface SessionUser {
   active: boolean
   telegram_id: string | null
 }
+interface SessionSettings {
+  today: string
+  timezone: string
+  telegram_configured: boolean
+  smtp_configured: boolean
+}
+const unauthorized = (error: unknown) =>
+  error instanceof ApiError && [401, 403].includes(error.status)
+
 export const useSession = defineStore('session', () => {
   const user = ref<SessionUser | null>(null)
   const ready = ref(false)
-  const settings = ref<{
-    today: string
-    timezone: string
-    telegram_configured: boolean
-    smtp_configured: boolean
-  } | null>(null)
+  const settings = ref<SessionSettings | null>(null)
   const isAdmin = computed(() => user.value?.role === 'admin')
-  async function restore() {
+  let generation = 0
+  let identityRequest: { generation: number; promise: Promise<void> } | undefined
+
+  function clear() {
+    ++generation
+    user.value = null
+    settings.value = null
+    ready.value = true
+  }
+  async function loadSettings(current: number) {
     try {
-      user.value = await api<SessionUser>('/auth/me')
-      settings.value = await api('/settings')
-    } catch {
-      user.value = null
-    } finally {
-      ready.value = true
+      const value = await api<SessionSettings>('/settings')
+      if (current === generation) settings.value = value
+    } catch (error) {
+      // Optional configuration failure must not turn a successful login into
+      // an authentication failure. Retry on the next identity refresh.
+      if (current === generation) {
+        if (unauthorized(error)) clear()
+        else settings.value = null
+      }
     }
   }
-  async function refreshIdentity() {
-    try {
-      user.value = await api<SessionUser>('/auth/me')
-    } catch (error) {
-      if (error instanceof ApiError && [401, 403].includes(error.status)) user.value = null
-    }
+  function refreshIdentity(): Promise<void> {
+    if (identityRequest?.generation === generation) return identityRequest.promise
+    const current = generation
+    const promise = (async () => {
+      try {
+        const value = await api<SessionUser>('/auth/me')
+        if (current !== generation) return
+        user.value = value
+        if (!settings.value) await loadSettings(current)
+      } catch (error) {
+        if (current === generation && unauthorized(error)) clear()
+      } finally {
+        if (current === generation) ready.value = true
+        if (identityRequest?.generation === current) identityRequest = undefined
+      }
+    })()
+    identityRequest = { generation: current, promise }
+    return promise
+  }
+  async function restore() {
+    await refreshIdentity()
   }
   async function login(login: string, password: string) {
-    user.value = await api<SessionUser>('/auth/login', {
+    const current = ++generation
+    const value = await api<SessionUser>('/auth/login', {
       method: 'POST',
       body: jsonBody({ login, password }),
     })
-    settings.value = await api('/settings')
+    if (current !== generation) return
+    user.value = value
+    settings.value = null
+    ready.value = true
+    await loadSettings(current)
   }
   async function logout() {
-    await api('/auth/logout', { method: 'POST' })
-    user.value = null
+    try {
+      await api('/auth/logout', { method: 'POST' })
+    } catch (error) {
+      if (!unauthorized(error)) throw error
+    }
+    clear()
   }
   async function updateProfile(name: string) {
-    user.value = await api<SessionUser>('/auth/me', {
-      method: 'PATCH',
-      body: jsonBody({ name }),
-    })
+    const current = ++generation
+    try {
+      const value = await api<SessionUser>('/auth/me', {
+        method: 'PATCH',
+        body: jsonBody({ name }),
+      })
+      if (current === generation) user.value = value
+    } catch (error) {
+      if (current === generation && unauthorized(error)) clear()
+      throw error
+    }
   }
   async function changePassword(currentPassword: string, newPassword: string) {
     await api('/auth/password', {
       method: 'POST',
       body: jsonBody({ current_password: currentPassword, new_password: newPassword }),
     })
-    user.value = null
-    settings.value = null
+    clear()
   }
   return {
     user,
@@ -73,5 +119,6 @@ export const useSession = defineStore('session', () => {
     logout,
     updateProfile,
     changePassword,
+    clear,
   }
 })

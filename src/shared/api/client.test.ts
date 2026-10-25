@@ -12,6 +12,31 @@ beforeEach(() => {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('public request session isolation', () => {
+  it('accepts all standard header formats and preserves explicit content types', async () => {
+    fetchMock.mockResolvedValue(new Response(null, { status: 204 }))
+    expect(
+      await api('/rows', { method: 'DELETE', headers: new Headers({ 'X-Trace': 'test' }) }),
+    ).toBeUndefined()
+    expect(new Headers(fetchMock.mock.calls[0][1].headers).get('X-Trace')).toBe('test')
+    fetchMock.mockResolvedValue(Response.json({ ok: true }))
+    await api('/rows', {
+      method: 'POST',
+      body: '{}',
+      headers: [['Content-Type', 'application/problem+json']],
+    })
+    expect(new Headers(fetchMock.mock.calls[1][1].headers).get('Content-Type')).toBe(
+      'application/problem+json',
+    )
+  })
+  it('does not expire the active session because of an obsolete aborted request', async () => {
+    const controller = new AbortController()
+    fetchMock.mockImplementation(async () => {
+      controller.abort()
+      return Response.json({ detail: 'Old session' }, { status: 401 })
+    })
+    await expect(api('/rows', { signal: controller.signal })).rejects.toBeInstanceOf(ApiError)
+    expect(dispatch).not.toHaveBeenCalled()
+  })
   it('preserves structured integration failures for actionable feedback', async () => {
     fetchMock.mockResolvedValue(
       new Response(

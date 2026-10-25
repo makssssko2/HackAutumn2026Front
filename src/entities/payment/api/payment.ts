@@ -3,7 +3,10 @@ import type { Occurrence, OccurrenceDetail, Recurring, Summary } from '../model/
 export const paymentApi = {
   list: (filters: Record<string, string | number | undefined> = {}) =>
     allPages<Occurrence>('/payment-occurrences', filters),
-  detail: (id: string) => api<OccurrenceDetail>(`/payment-occurrences/${id}?include_related=false`),
+  detail: (id: string, signal?: AbortSignal) =>
+    api<OccurrenceDetail>(`/payment-occurrences/${encodeURIComponent(id)}?include_related=false`, {
+      signal,
+    }),
   update: (
     id: string,
     value: { paid?: boolean; paid_at?: string; demo?: boolean; expected_revision: number },
@@ -16,6 +19,6 @@ export const paymentApi = {
     api<{ id: string }>('/one-time-payments', { method: 'POST', body: jsonBody(value) }),
   cancelOneTime: (id: string) => api(`/one-time-payments/${id}`, { method: 'DELETE' }),
   remind: (id: string) => api(`/notifications/occurrences/${id}/remind`, { method: 'POST' }),
-  summary: (filters: Record<string, string | number | undefined> = {}) =>
-    api<Summary>(`/payments/summary${queryString(filters)}`),
+  summary: (filters: Record<string, string | number | undefined> = {}, signal?: AbortSignal) =>
+    api<Summary>(`/payments/summary${queryString(filters)}`, { signal }),
 }

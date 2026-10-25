@@ -14,7 +14,7 @@ const session = useSession()
 const year = ref(Number((session.settings?.today || dateISO()).slice(0, 4))),
   currency = ref<Currency>('RUB')
 const { data, loading, error, reload } = useAsyncData(
-  () => api<Budget>(`/payments/budget?year=${year.value}`),
+  (signal) => api<Budget>(`/payments/budget?year=${year.value}`, { signal }),
   null as Budget | null,
 )
 watch(year, reload)

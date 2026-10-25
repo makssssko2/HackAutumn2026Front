@@ -1,9 +1,9 @@
 <script setup lang="ts">
 import { ref } from 'vue'
 import { RouterLink } from 'vue-router'
-import { paymentApi, type Recurring } from '@/entities/payment'
+import { paymentApi, frequencyLabel, type Recurring } from '@/entities/payment'
 import { useSession } from '@/entities/session'
-import { money, dateLabel, frequencyLabel, usePagedList } from '@/shared/lib'
+import { money, dateLabel, usePagedList } from '@/shared/lib'
 import { AppIcon, AsyncState, EmptyState, Pagination } from '@/shared/ui'
 const session = useSession()
 const {

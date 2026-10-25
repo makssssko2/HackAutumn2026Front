@@ -34,10 +34,10 @@ const {
   reload,
 } = usePagedList<Channel>('/channels')
 const integrations = useAsyncData(
-  async () => {
+  async (signal) => {
     const [providers, connections] = await Promise.all([
-      integrationApi.providers(),
-      integrationApi.connections(),
+      integrationApi.providers(signal),
+      integrationApi.connections(signal),
     ])
     return { providers: providers.filter((p) => isIntegration(p.provider)), connections }
   },

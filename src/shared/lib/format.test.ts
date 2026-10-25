@@ -19,5 +19,6 @@ describe('currency and calendar display', () => {
     expect(dateISO(new Date(2026, 0, 31))).toBe('2026-01-31')
     expect(dateLabel('2026-01-31')).toContain('31')
     expect(dateLabel(null)).toBe('—')
+    expect(dateLabel('invalid-date')).toBe('—')
   })
 })

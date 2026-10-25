@@ -9,15 +9,13 @@ export class ApiError extends Error {
 }
 
 export async function api<T>(path: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers)
+  if (options.body && !(options.body instanceof FormData) && !headers.has('Content-Type'))
+    headers.set('Content-Type', 'application/json')
   const response = await fetch(`/api/v1${path}`, {
     ...options,
     credentials: options.credentials ?? 'include',
-    headers: {
-      ...(options.body && !(options.body instanceof FormData)
-        ? { 'Content-Type': 'application/json' }
-        : {}),
-      ...options.headers,
-    },
+    headers,
   })
   if (!response.ok) {
     let message = 'Сервис временно недоступен. Попробуйте еще раз.'
@@ -34,10 +32,16 @@ export async function api<T>(path: string, options: RequestInit = {}): Promise<T
     } catch {
       /* Keep a readable fallback for non-JSON errors. */
     }
-    if (response.status === 401 && options.credentials !== 'omit' && !path.startsWith('/auth/'))
+    if (
+      !options.signal?.aborted &&
+      response.status === 401 &&
+      options.credentials !== 'omit' &&
+      !path.startsWith('/auth/')
+    )
       window.dispatchEvent(new Event('session-expired'))
     throw new ApiError(response.status, message, code)
   }
+  if (response.status === 204) return undefined as T
   return response.json() as Promise<T>
 }
 

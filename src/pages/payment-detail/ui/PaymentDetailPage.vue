@@ -1,5 +1,6 @@
 <script setup lang="ts">
-import { computed, nextTick, ref, watch } from 'vue'
+import { actionLabel } from '@/entities/audit'
+import { computed, nextTick, onScopeDispose, ref, watch } from 'vue'
 import { RouterLink, useRoute } from 'vue-router'
 import {
   paymentApi,
@@ -7,6 +8,7 @@ import {
   PaymentTable,
   paymentTypeLabel,
   reminderWindow,
+  frequencyLabel,
   type Occurrence,
   type OccurrenceDetail,
   type Receipt,
@@ -15,15 +17,7 @@ import {
 } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import { api, ApiError, jsonBody } from '@/shared/api'
-import {
-  dateISO,
-  dateLabel,
-  money,
-  frequencyLabel,
-  actionLabel,
-  useAsyncData,
-  usePagedList,
-} from '@/shared/lib'
+import { dateISO, dateLabel, money, useAsyncData, usePagedList } from '@/shared/lib'
 import { AppIcon, AsyncState, Pagination } from '@/shared/ui'
 const route = useRoute()
 const session = useSession()
@@ -39,14 +33,18 @@ const actionHeading = ref<HTMLElement | null>(null)
 const feedback = ref<HTMLElement | null>(null)
 const showIssued = ref(!!route.query.issued)
 const today = computed(() => session.settings?.today || dateISO())
+let operationVersion = 0
+onScopeDispose(() => {
+  ++operationVersion
+})
 const {
   data,
   loading,
   error,
   reload: reloadDetail,
 } = useAsyncData(
-  async () => {
-    const detail = await paymentApi.detail(String(route.params.id))
+  async (signal) => {
+    const detail = await paymentApi.detail(String(route.params.id), signal)
     return { detail, active: detail.payment_active }
   },
   { detail: null as OccurrenceDetail | null, active: false },
@@ -73,7 +71,9 @@ const periods = usePagedList<Occurrence>(
   { enabled: () => relatedEnabled() && data.value.detail?.payment_type !== 'one_time' },
 )
 async function reload() {
+  const id = String(route.params.id)
   await reloadDetail()
+  if (id !== String(route.params.id)) return
   await Promise.all([history.reload(), documents.reload(), receipts.reload(), periods.reload()])
 }
 const canRemind = computed(
@@ -82,39 +82,53 @@ const canRemind = computed(
 watch(
   () => route.params.id,
   () => {
+    ++operationVersion
+    busy.value = false
     action.value = null
     showIssued.value = !!route.query.issued
     message.value = ''
     operationError.value = ''
     reload()
   },
+  { flush: 'sync' },
 )
 async function operate(request: () => Promise<unknown>, success: string) {
+  if (busy.value) return false
+  const operation = ++operationVersion
+  const id = String(route.params.id)
+  const current = () => operation === operationVersion && id === String(route.params.id)
   busy.value = true
   operationError.value = ''
   message.value = ''
   showIssued.value = false
   try {
     await request()
+    if (!current()) return false
     await reload()
+    if (!current()) return false
     message.value = success
     return true
   } catch (e) {
+    if (!current()) return false
     if (e instanceof ApiError && e.status === 409) {
       action.value = null
       await reload()
+      if (!current()) return false
       operationError.value = e.message.startsWith('Счет уже изменен')
         ? 'Счет изменен другим участником. Загружены актуальные данные; проверьте их перед новым действием.'
         : `${e.message.replace(/[.!?]+$/, '')}. Данные счета обновлены; проверьте их перед новым действием.`
     } else {
       if (e instanceof ApiError && e.status === 403) await session.refreshIdentity()
+      if (!current()) return false
       operationError.value = (e as Error).message
     }
     return false
   } finally {
-    busy.value = false
-    await nextTick()
-    feedback.value?.focus()
+    if (current()) {
+      busy.value = false
+      await nextTick()
+      if (current()) feedback.value?.focus()
+    }
   }
 }
 async function openAction(value: 'pay' | 'date' | 'undo') {
@@ -187,7 +201,7 @@ async function upload(event: Event) {
   input.value = ''
 }
 async function addLink() {
-  await operate(
+  const saved = await operate(
     () =>
       api(`/payment-occurrences/${route.params.id}/links`, {
         method: 'POST',
@@ -195,7 +209,7 @@ async function addLink() {
       }),
     'Ссылка прикреплена',
   )
-  if (!operationError.value) {
+  if (saved) {
     linkName.value = ''
     linkURL.value = ''
   }

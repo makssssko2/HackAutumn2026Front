@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed, reactive, ref } from 'vue'
 import { RouterLink, useRouter } from 'vue-router'
-import { paymentApi, reminderWindow, type PaymentType } from '@/entities/payment'
+import { paymentApi, reminderWindow, frequencyLabel, type PaymentType } from '@/entities/payment'
 import { useSession } from '@/entities/session'
 import {
   recipientChannels,
@@ -12,7 +12,7 @@ import {
   type AudienceGroup,
 } from '@/entities/channel'
 import { allPages } from '@/shared/api'
-import { currencies, dateISO, money, frequencyLabel, useAsyncData } from '@/shared/lib'
+import { currencies, dateISO, money, useAsyncData } from '@/shared/lib'
 import { AppIcon } from '@/shared/ui'
 const router = useRouter()
 const session = useSession()
@@ -42,11 +42,11 @@ const {
   error: recipientsError,
   reload: reloadRecipients,
 } = useAsyncData(
-  async () => {
+  async (signal) => {
     const [groups, channels, connections] = await Promise.all([
-      allPages<AudienceGroup>('/groups'),
-      allPages<Channel>('/channels'),
-      integrationApi.connections().catch(() => undefined),
+      allPages<AudienceGroup>('/groups', {}, signal),
+      allPages<Channel>('/channels', {}, signal),
+      integrationApi.connections(signal).catch(() => undefined),
     ])
     return { groups, channels: channels.filter((channel) => channel.active), connections }
   },

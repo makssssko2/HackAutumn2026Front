@@ -30,6 +30,11 @@ export interface Occurrence {
   overdue_days: number
   status: 'paid' | 'unpaid' | 'overdue' | 'cancelled'
 }
+export interface PublicPaymentInvoice extends Omit<PublicInvoiceView, 'payment_type' | 'status'> {
+  revision: number
+  today: string
+  has_receipt: boolean
+}
 export interface Recurring {
   id: string
   title: string
