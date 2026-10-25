@@ -162,6 +162,7 @@ async function changePassword() {
       </form>
 
       <form
+        v-if="session.settings?.password_change_enabled === true"
         class="panel profile-form"
         :aria-busy="changingPassword"
         @submit.prevent="changePassword"

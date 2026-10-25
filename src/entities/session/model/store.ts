@@ -11,6 +11,7 @@ export interface SessionUser {
   telegram_id: string | null
 }
 interface SessionSettings {
+  password_change_enabled?: boolean
   today: string
   timezone: string
   telegram_configured: boolean
